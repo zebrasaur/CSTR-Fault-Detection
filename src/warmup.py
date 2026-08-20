@@ -103,7 +103,7 @@ def count_consecutive_above(data: list[float], threshold: float, n: int) -> bool
         if value > threshold:
             current_streak += 1
             # check if we hit the target streak
-            if current_streak > n:
+            if current_streak >= n:
                 return True
         else:
             # The streak broke; reset counter
