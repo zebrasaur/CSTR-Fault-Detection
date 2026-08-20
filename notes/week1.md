@@ -21,9 +21,11 @@ My git repo was initialized one level above my project because i kept moving the
 
 mv folder/* silently skipped hidden files. used rm -rf to force remove all files and created the .gitignore folder. MacOS sees .(files) as invisible and they need to be manual revealed
 
+two comparisons in one function (count_consectutive_above). The value test for threshold is strictly great and the streak test is at-least for n
+
 ## What I did not understand at first
 the math behind the functions
-how to use VS and python and terminal
+how to use VS and python and terminal commands
 
 ## Decisions I made, and why
 
