@@ -11,6 +11,10 @@ Installed all tooling in Macbook. Python3, VS code, git, numby, pandas, matplotl
 Three required functions in python (moving average, standardized values and count consecutive above)
 
 ## What broke, and what fixed it
+used parentheses (...) instead of square brackets [...] to create a standardize_value which caused a generator object instead of a list
+
+leanred to use round function within the list call. 
+standardize_value = [round((x - mean) / sample_std, 2) for x in data]
 
 
 A venv broke because I renamed its parent folder, and the error message gave no hint why.I changed to the correct dir in a new terminal and reinstalled the entire package with numpy, pandas and matplotlib
