@@ -11,15 +11,29 @@ rk4 integrator with test functions
 was using the wrong homebrew python which was bypassing venv. switched to correct version
 learned to add if __name__ == "__main__" for test functions inside defining functions code (defininations are fine, actions need to be guarded)
 learned that functions are case sensitive
+global and local variables are not the same
+using variables in a while and if loop that are local and not global
+puting lists as values in np arrays
+
 
 ## What I did not understand at first
 the math behind rk4 (rusty)
 how to pass functions as vectors and arrays using numpy to represent the arrays to exectue across vectors
+how to use if name == main
+local and global variable differences
+how to prompt user for numbers
+how to include the convergence test inside of functions that use assert instead of print
+how to print tables inside of loops
+the difference between functions and loops
+anything meant to be called by other code has to take its parameters as arguments not fish for them at the keyboard. layer print and functions. pure functions underneath and an optional interactive layer on top
+how to write a print_tabel function
 
 ## Decisions I made, and why
 
 wrote rk4 first in math then in pythons
 wrote test function inside rk4 function
+wrote code to test convergence and analytical solutions in seperate file that calls on the rk4 file
+decided to make an interactive test file for some reason to test rk4
 
 
 ## Interview gate — answered out loud, no notes
@@ -52,13 +66,13 @@ wrote test function inside rk4 function
 | Wed | |8|    python, VS code - week1
 | Thu | |8|    50% week1 + 50% week2
 | Fri | |8|    rk4 functions and tests
-| Sat | | |
+| Sat | |4|
 
 | Day | Hours | On what |
 |---|---|---|
-| Mon | | |
-| Tue | | |
-| Wed | | |
-| Thu | | |
+| Mon | |4|       writing rk4
+| Tue | |4|       test functions + convergence
+| Wed | |4|       test functions + convergence
+| Thu | |2|       print functions and code cleanup
 | Fri | | |
 | Sat | | |
