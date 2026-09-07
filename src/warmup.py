@@ -39,7 +39,7 @@ def standardize(data):
     if sample_std == 0:
         raise ValueError("std is 0")
     
-    standardize_value = [round((x - mean)/sample_std, 2) for x in data]
+    standardize_value = [(x - mean)/sample_std for x in data]
     return standardize_value
 
 

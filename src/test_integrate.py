@@ -79,3 +79,28 @@ if __name__ == "__main__":
     check_convergence()
     prompt_and_run() 
     
+    
+    
+    
+    
+    
+#Harmonic Ocsillator test
+m = 1.0     #Mass (kg)
+k_spring = 4.0 #Spring constant (N/m)
+omega_sq = k_spring / m
+
+# ODE derivative function: dy/dt = [v, -omega^2*x]
+def harmonic_oscillator(y,t):
+    x, v = y[0], y[1]
+    dx_dt = v
+    dv_dt = -omega_sq * x
+    return np.array([dx_dt, dv_dt])
+
+# Energy Calculation Funcation
+def compute_energy(y, m=m, k=k_spring):
+    x, v = y[0], y[1]
+    kinetic = 0.5 * m * (v**2)
+    potential = 0.5 * k * (x**2)
+    return kinetic + potential
+
+# simulation configuration
