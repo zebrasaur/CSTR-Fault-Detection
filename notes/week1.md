@@ -27,6 +27,9 @@ mv folder/* silently skipped hidden files. used rm -rf to force remove all files
 
 two comparisons in one function (count_consectutive_above). The value test for threshold is strictly great and the streak test is at-least for n
 
+added rounding to 2 decimal places for better display for standardize which broke the precision downstream which needed full precision in check.py (the program that compares values togther). round only at the final display step never anywhere upstream of a calculation or a comparison. keep full precision in every value that feeds something esle. round only in the print or at the very end. round only in the print or f"{x:.2f}"
+
+
 ## What I did not understand at first
 the math behind the functions
 how to use VS and python and terminal commands

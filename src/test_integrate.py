@@ -104,3 +104,11 @@ def compute_energy(y, m=m, k=k_spring):
     return kinetic + potential
 
 # simulation configuration
+
+h = 0.05    #Time stpe size (seconds)
+t_max = 10.0    #Total timem (seconds)
+t = 0.0
+
+# inital conditons: released from x0 = 1.0 m at rest (v) = 0.0 m/s)
+y = np.array([1.0, 0.0])
+E0 = compute_energy(y)
