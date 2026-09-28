@@ -105,10 +105,30 @@ def compute_energy(y, m=m, k=k_spring):
 
 # simulation configuration
 
-h = 0.05    #Time stpe size (seconds)
+h = 0.1    #Time stpe size (seconds)
 t_max = 10.0    #Total timem (seconds)
 t = 0.0
 
 # inital conditons: released from x0 = 1.0 m at rest (v) = 0.0 m/s)
 y = np.array([1.0, 0.0])
 E0 = compute_energy(y)
+
+print(f"{'Time (t)':>8} | {'Position (x)':>13} | {'Velocity (v)':>13} | {'Energy (E)':>12} | {'Energy Drift (|E - E0|)':>23}")
+print("-" * 78)
+
+#log initial state
+print(f"{t:>8.2f} | {y[0]:>13.6f} | {y[1]:>13.6f} | {E0:>12.6f} | {0.0:>23.4e}")
+
+# Integration loop using RK4 call
+while t< (t_max - 1e-9):
+    current_h=min(h,t_max-t)
+    y=rk4_step(harmonic_oscillator, y,t, current_h)
+    t +=current_h
+    
+    current_energy = compute_energy(y)
+    drift = abs(current_energy - E0)
+    
+    # Print every 1.0 seconds
+    if np.isclose( t % 1.0, 0.0) or np.isclose(t % 1.0, 1.0):
+        print(f"{t:>8.2f} | {y[0]:>13.6f} | {y[1]:>13.6f} | {current_energy:>12.6f} | {drift:>23.4e}")
+        
