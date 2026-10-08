@@ -1,5 +1,5 @@
 import numpy as np
-from RK4_integrate import rk4_step
+from rk4_function import rk4_step
 
 
 def test_ode(y,t):
