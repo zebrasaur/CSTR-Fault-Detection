@@ -1,9 +1,3 @@
-
-cd..
-cd ..
-cd ..
-cd /Users/q/Documents/Project-CSTR-Fault 
-cat > .gitignore <<'EOF'
 .venv/
 __pycache__/
 data/
