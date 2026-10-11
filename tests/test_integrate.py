@@ -1,5 +1,10 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'src'))
+
 import numpy as np
-from rk4_function import rk4_step
+from integrate import rk4_step
 
 
 def test_ode(y,t):
