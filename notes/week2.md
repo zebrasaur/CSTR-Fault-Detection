@@ -51,9 +51,14 @@ decided to make an interactive test file for some reason to test rk4
 
 | Check | Result |
 |---|---|
-| Analytic comparison, error at t=2 | |
-| Convergence ratio (h=0.1 vs h=0.05) | |
+Analytic comparison, error at t=2 | 
+|t= 2.0000 | RK4=36.7879 | Exact:36.7879 | Error=  1.9976e-06
+
+| Convergence ratio (h=0.1 vs h=0.05) | | 16.34 @ h = 0.1 and 31.8 at h = 0.05
+
 | Oscillator energy drift over 20 periods | |
+Time         Position         Velocity         Energy              Drift
+20.00 |     -0.666487  |    -1.490796      |     1.999646 |     3.5375e-04
 
 
 

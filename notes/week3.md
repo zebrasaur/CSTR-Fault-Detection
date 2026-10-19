@@ -40,11 +40,13 @@ Started: <date>
 
 ## Time spent
 
-| Day | Hours | On what |
+| Day | Hours Oct | On what |
 |---|---|---|
-| Mon | | |
-| Tue | | |
-| Wed | | |
-| Thu | | |
-| Fri | | |
-| Sat | | |
+| Mon | |  |        analytical CSTR nonisothermal+nonadiabatic at steady state
+| Tue | | 2| 14th        "
+| Wed | | 2|             "
+| Thu | | 2|             "
+| Fri | | 2|             "
+| Sat | | 2|             "
+Sun       2              "
+Mon       2  19th        "
