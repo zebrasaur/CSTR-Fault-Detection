@@ -55,9 +55,9 @@ Q_rem = (rho*Cp*v0*(T - T0) + UA*(T - Tc_400))  #Heat removal J/min
 
 print(f"--- Operating Point Verification at T = 400 K ---")
 print(f"Conversion X_A:          {X_A_400 * 100:.2f}%")
-print(f"Heat Generated:          {Q_gen_400:.2f} kJ/min")
-print(f"Inlet Stream Load:       {Q_inlet_400:.2f} kJ/min")
-print(f"Required Jacket Duty:    {Q_jacket_400:.2f} kJ/min")
+print(f"Heat Generated:          {Q_gen_400:.2f} J/min")
+print(f"Inlet Stream Load:       {Q_inlet_400:.2f} J/min")
+print(f"Required Jacket Duty:    {Q_jacket_400:.2f} J/min")
 print(f"Required Coolant Temp:   {Tc_400:.2f} K ({Tc_400 - 273.15:.2f} °C)")
 print(f"Coolant Mass Flow Rate:  {mc_400:.3f} kg/s\n")
 
