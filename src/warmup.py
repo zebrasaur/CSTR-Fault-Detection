@@ -11,7 +11,7 @@ def moving_average(data, window_size):
     for i in range(total_windows):
         window = data[i:i+window_size]
         avg = sum(window)/window_size
-        result.append(round(avg, 2))
+        result.append(avg)
     
     return result
 

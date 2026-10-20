@@ -1,4 +1,5 @@
 import numpy as np
+from integrate import rk4_step
 
 
 #STANDARDIZE (z-scores) IN NUMPY
@@ -54,19 +55,6 @@ def count_consecutive_above_np(data,threshold,n) -> bool:
 readings = np.array([12.0, 15.5, 18.2, 19.0, 14.1, 21.0])
 print("Consecutive exceedance (n=3, thresh=15.0):", 
       count_consecutive_above_np(readings, 15.0, 3))
-
-
-
-#RK4 IN NUMPY
-
-def rk4_step_np(f, y: np.ndarray, t, h) -> np.ndarray:
-# comutes a single RK4 step for vector state y
-
-    k1 = f(y,t)
-    k2 = f(y + 0.5 * h * k1, t + 0.5 * h)
-    k3 = f(y + 0.5 * h * k2, t + 0.5 * h)
-    k4 = f(y + h * k3, t + h)
-    return y + (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
 
 
 #Generic ODE solver
