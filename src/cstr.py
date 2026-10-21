@@ -62,6 +62,16 @@ def solve_steady_state(T_target, params=None):
     mc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
     return C_A, T_target, Tc_target, mc_target, conversion
 
+def stability_margin(T_target, params=None):
+    """ Return dQgen_dT, dQremoved_dT per unit reactor volume (J/min*K*m^3)"""
+    p = default_params() if params is None else params
+    C_A, T, Tc_target, mc_target, X_A = solve_steady_state(T_target, p)
+    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
+    dQgen_dT = (-p.delta_H_rxn)*p.F_A0*((X_A*(1-X_A))*(p.Ea_over_R/(T_target)**2))
+    UAeff = (p.UA*mc_target*p.Cp_coolant)/(mc_target*p.Cp_coolant + p.UA)
+    dQremoved_dT = p.rho*p.Cp_feed*p.v0 + UAeff
+    return dQgen_dT / p.V, dQremoved_dT / p.V
+
 
 if __name__ == "__main__":
     T_target = float(input("Enter target reactor temperture (K): "))
