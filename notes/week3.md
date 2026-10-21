@@ -13,7 +13,7 @@ differentiated the heat removal term by keeping Tc constant. Then differentiated
 ## What I did not understand at first
 how distubrances and faults are classified. slope stability criterion. Van Heerden Thermal Multiplicity Diagram. sigmoidal functions. Bifurcation & Hysteresis Loop Diagram
 ## Decisions I made, and why
-derive various cstr analytical soultions first. Used 400K because thats what the plan called for.do all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write code to calculate parameters and heat terms and plot them using a 500 element temperature array. Check plots for steady state and sanity check.converted everything to /minute instead of /second to give the tau (space-time) check more time for faults and fowling. built removal functions for keeping both Tc and mc constant.
+derive various cstr analytical soultions first. Used 400K because thats what the plan called for and gemni gave me the parapmeters for the rest of the CSTR.do all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write code to calculate parameters and heat terms and plot them using a 500 element temperature array. Check plots for steady state and sanity check.converted everything to /minute instead of /second to give the tau (space-time) check more time for faults and fowling. built removal functions for keeping both Tc and mc constant.
 <!-- Every arbitrary-looking choice needs its reason recorded NOW, while
      you still have it. "Why 400 K?" is only answerable in week 6 if you
      wrote it down in week 3. -->
@@ -21,7 +21,7 @@ derive various cstr analytical soultions first. Used 400K because thats what the
 ## Interview gate — answered out loud, no notes
 
 - [ ] Why does this reactor have three steady states? Which one are you
-      on, and how do you know? every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch betwen the dQ_removed/dT > dQ_gen/dT terms.
+      on, and how do you know? every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch betwen the dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch, and the slope criterion holds both ways (24.32 > 19.60 with Tc or mc fixed).
 - [ ] Where does the fouling fault show up, and where does it NOT? Why?
 - [ ] What is integral windup, and what did you do about it?
 
@@ -47,9 +47,9 @@ numerical values are in Heat_plots.py
 
 | Quantity | Value, J/(L min K) |
 |---|---|
-| dQgen/dT | |
-| dQremoved/dT | |
-| Stable? | |
+| dQgen/dT |        19.597 kW/k |
+| dQremoved/dT |    24.33 kW/k  |
+| Stable? |yes, dQremoved/dT > dQgen/dT |
 
 ## Time spent
 

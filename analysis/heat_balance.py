@@ -78,4 +78,3 @@ plt.tight_layout()
 plt.savefig(Path(__file__).resolve().parent.parent / "figures" / "van_heerden_400K.png", dpi=150)
 plt.show()
 
-eewee
