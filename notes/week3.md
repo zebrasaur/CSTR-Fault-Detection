@@ -21,7 +21,7 @@ derive various cstr analytical soultions first. Used 400K because thats what the
 ## Interview gate — answered out loud, no notes
 
 - [ ] Why does this reactor have three steady states? Which one are you
-      on, and how do you know? every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch betwen the dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch, and the slope criterion holds both ways (24.32 > 19.60 with Tc or mc fixed).
+      on, and how do you know? every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch betwen the dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch,
 - [ ] Where does the fouling fault show up, and where does it NOT? Why?
 - [ ] What is integral windup, and what did you do about it?
 
@@ -38,6 +38,8 @@ jacket energy balance: UA*(T - Ta) = mc*Cpc*(Ta - Tc,in)
 Qinlet + Qgen - Qjacket = 0
 numerical values are in Heat_plots.py
 
+Coolant at 80.7 °C	It goes to a heat exchanger and the fouling fault becomes a process-side deposits on the coils, which is plausible for a reactor this hot. 
+ΔH = 250 kJ/mol	Deliberately high, to create multiplicity in operating conditions including the adiabatic temperture rise
 
 <!-- Required by check.py stage 3. Write out the three balances and how
      you solved them: component A gives Ca, reactor energy gives Tc,
@@ -45,12 +47,18 @@ numerical values are in Heat_plots.py
 
 ## Van Heerden stability check
 
-| Quantity | Value, J/(L min K) |
+| Quantity | Value, kW/K        |
 |---|---|
-| dQgen/dT |        19.597 kW/k |
-| dQremoved/dT |    24.33 kW/k  |
+| dQgen/dT |        19.597 kW/K |
+| dQremoved/dT |    24.32 kW/K  |
 | Stable? |yes, dQremoved/dT > dQgen/dT |
 
+
+Removal assumption	Low	Middle (unstable)	Operating	Distance to the unstable state
+Tc held fixed (blue)	337.3 K	354.3 K	     400 K	          46 K
+Coolant flow held fixed 	302.5 K	382.6 K	     400 K	          17 K
+
+With the coolant valve frozen, which is what “open loop” means for this reactor, a 17 K dip in reactor temperature crosses the unstable middle state. From there the reactor falls to the extinguished steady state near 302 K and conversion collapses.
 ## Time spent
 
 | Day | Hours Oct        | On what |

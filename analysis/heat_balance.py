@@ -11,7 +11,6 @@ C_A0 = 2500.0  # Feed concentration (mol/m^3)
 F_A0 = v0 * C_A0  # Molar feed rate (mol/min)
 T0 = 300.0  # Feed reactant temperature (K)
 Tc_in = 293.15 # Feed Coolant temperature (K)
-mc = 109       # Coolant mass flow rate kg/min
 
 # Fluid and Heat Transfer Properties
 Cp = 4000  # specific heat capacity of feed (J/(kg*K))
@@ -51,7 +50,7 @@ Q_jacket_400 = Q_gen_400 - Q_inlet_400          #Heat duty J/min of cooling jack
 Tc_400 = 400 - (Q_jacket_400/UA)                #Jacket Temperature at T = 400K
 mc_400 = Q_jacket_400/(Cpc*(Tc_400 - Tc_in))    #Coolant mass flow rate T = 400K
 Q_rem_Tc = (rho*Cp*v0*(T - T0) + UA*(T - Tc_400))  #Heat removal J/min
-UAeff = (UA*mc*Cpc)/(mc*Cpc+ UA)
+UAeff = (UA*mc_400*Cpc)/(mc_400*Cpc+ UA)
 Q_rem_mc = (rho*Cp*v0*(T - T0)) + UAeff*(T - Tc_in)
 
 print(f"--- Operating Point Verification at T = 400 K ---")
@@ -67,7 +66,7 @@ print(f"Coolant Mass Flow Rate:  {mc_400:.3f} kg/min\n")
 plt.figure(figsize=(8, 5))
 plt.plot(T, Q_gen, "r-", linewidth=2, label="Q_gen (T): Heat Generation")
 plt.plot(T, Q_rem_Tc, "b-", linewidth=2, label="Q_rem_Tc (T): Heat Removal (Fixed $T_c$)")
-plt.plot(T, Q_rem_mc, "g-", linewidth=2, label="Q_rem_mc (T): Heat Removal (Fixed $T_c$)")
+plt.plot(T, Q_rem_mc, "g-", linewidth=2, label="Q_rem_mc (T): Heat Removal (Fixed $mc$)")
 
 plt.title("Van Heerden Diagram for Jacketed CSTR")
 plt.xlabel("Reactor Temperature $T$ (K)")
