@@ -34,38 +34,47 @@ def default_params():
 
 
 
-T_target = float(input("Enter target reactor temperture (K): "))
 
 #Arrhenius rate constant k(T), 1/min
 def rate_constant(T, p):
     k = p.k_ref*np.exp(p.Ea_over_R*(1/(p.T_ref) - 1/T))
     return k
 
+def heat_duties(T, params=None):
+    p = default_params() if params is None else params
+    k = rate_constant(T_target,p) #rate constant (1/min)
+    conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
+    C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
+    Q_gen = ((-p.delta_H_rxn))*(k*C_A*p.V) #Heat gen J/min
+    Q_inlet = p.rho*p.Cp_feed*p.v0*(T_target - p.T0) #Heat duty J/min of inlet stream at T = 400K
+    Q_jacket = Q_gen - Q_inlet #Heat duty J/min of cooling jacket T = 400K 
+    return Q_gen, Q_inlet, Q_jacket
+    
+    
 def solve_steady_state(T_target, params=None):
     #return (Ca mol/m^3, T(K), Tc(K), mc(kg/min), conversion()) at temperture T_target
     p = default_params() if params is None else params
     k = rate_constant(T_target,p)
     conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
-    Q_gen = ((-p.delta_H_rxn))*(k*C_A*p.V) #Heat gen J/min
-    Q_inlet = p.rho*p.Cp_feed*p.v0*(T_target - p.T0) #Heat duty J/min of inlet stream at T = 400K
-    Q_jacket = Q_gen - Q_inlet #Heat duty J/min of cooling jacket T = 400K 
+    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     Tc_target = T_target - (Q_jacket/p.UA) #coolant temperature at jacket (K)
     mc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
-    Q_rem_Tc = (p.rho*p.Cp_feed*p.v0*(T_target - p.T0) + p.UA*(T_target - Tc_target))  #Heat removal J/min Tc fixed
-    UAeff = (p.UA*mc_target*p.Cp_coolant)/(mc_target*p.Cp_coolant + p.UA)
-    Q_rem_mc = (p.rho*p.Cp_coolant*p.v0*(T_target - p.T0)) + UAeff*(T_target - p.Tc_in) #Heat removal J/min mc fixed
-    return conversion, C_A, Q_gen, Q_inlet, Q_jacket, Tc_target, mc_target
+    return C_A, T_target, Tc_target, mc_target, conversion
 
-X, Ca, Qgen, Qinlet, Qjacket, Tc, mc = solve_steady_state(T_target)
+if __name__ == "__main__":
+    T_target = float(input("Enter target reactor temperture (K): "))
+    C_A, T_target, Tc, mc, X_A = solve_steady_state(T_target)
+    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target)
 
 
-print(f"--- Operating Point Verification at T = {T_target:.2f} K ---")
-print(f"Conversion X_A:             {X * 100:.2f}%")
-print(f"Exit stream concentration:  {Ca:.2f} mol/m^3")
-print(f"Heat Generated:             {Qgen:.2f} J/min")
-print(f"Inlet Stream Load:          {Qinlet:.2f} J/min")
-print(f"Required Jacket Duty:       {Qjacket:.2f} J/min")
-print(f"Required Coolant Temp:      {Tc:.2f} K ({Tc - 273.15:.2f} °C)")
-print(f"Coolant Mass Flow Rate:     {mc:.3f} kg/min\n")
+
+    print(f"--- Operating Point Verification at T = {T_target:.2f} K ---")
+    print(f"Exit stream concentration:  {C_A:.2f} mol/m^3")
+    print(f"Conversion:                 {X_A * 100:.2f} %")
+    print(f"Heat Generated:             {Q_gen:.2f} J/min")
+    print(f"Inlet Stream Load:          {Q_inlet:.2f} J/min")
+    print(f"Required Jacket Duty:       {Q_jacket:.2f} J/min")
+    print(f"Required Coolant Temp:      {Tc:.2f} K ({Tc - 273.15:.2f} °C)")
+    print(f"Coolant Mass Flow Rate:     {mc:.3f} kg/min\n")
 
