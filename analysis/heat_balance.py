@@ -16,7 +16,7 @@ Tc_in = 293.15 # Feed Coolant temperature (K)
 Cp = 4000  # specific heat capacity of feed (J/(kg*K))
 Cpc = 4184 # specific heat capacity of coolant (J/(kg*K))
 UA = 600000.00 # Overall heat transfer capacity (J/min*K)
-delta_H_rxn = -250000.0  # Heat of reaction (J/mol, exothermic)
+delta_H_rxn = -250_000.0  # Heat of reaction (J/mol, exothermic)
 rho = 1000 # Fluid density (kg/m^3)
 
 # Kinetic Parameters: k(T) = k_ref * exp[(Ea/R) * (1/T_ref - 1/T)]
