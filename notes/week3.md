@@ -54,11 +54,23 @@ Coolant at 80.7 °C	It goes to a heat exchanger and the fouling fault becomes a 
 | Stable? |yes, dQremoved/dT > dQgen/dT |
 
 
-Removal assumption	Low	Middle (unstable)	Operating	Distance to the unstable state
-Tc held fixed (blue)	337.3 K	354.3 K	     400 K	          46 K
-Coolant flow held fixed 	302.5 K	382.6 K	     400 K	          17 K
+Removal assumption	      Low	       Middle       Operating	   deltaT unstable state
+Tc held fixed (blue)	337.3 K	 354.3 K	       400 K	          46 K
+Coolant flow held fixed 	302.5 K	 382.6 K	       400 K	          17 K
 
 With the coolant valve frozen, which is what “open loop” means for this reactor, a 17 K dip in reactor temperature crosses the unstable middle state. From there the reactor falls to the extinguished steady state near 302 K and conversion collapses.
+
+
+d(Q_jacket)/dT = dQgen/dT − ρ·v0·Cp_feed = 19.60 − 20.00 = −0.40 kW/K
+
+	Margin (removal slope − generation slope)
+Feed alone (dQfeed/dT)	20.00 − 19.60 = 0.40 kW/K 
+Feed + jacket[coolant flow fixed (dQremoved/dT)]	24.32 − 19.60 = 4.72 kW/K
+The feed does most of the heat removal. The jacket provides almost all of the stability.
+
+
+
+
 ## Time spent
 
 | Day | Hours Oct        | On what |
