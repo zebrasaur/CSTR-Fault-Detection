@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
 from pathlib import Path
 
 # --- Reactor and Operating Parameters ---
@@ -12,6 +11,7 @@ C_A0 = 2500.0  # Feed concentration (mol/m^3)
 F_A0 = v0 * C_A0  # Molar feed rate (mol/min)
 T0 = 300.0  # Feed reactant temperature (K)
 Tc_in = 293.15 # Feed Coolant temperature (K)
+mc = 109       # Coolant mass flow rate kg/min
 
 # Fluid and Heat Transfer Properties
 Cp = 4000  # specific heat capacity of feed (J/(kg*K))
@@ -50,8 +50,9 @@ Q_inlet_400 = rho*Cp*v0*(400 - T0)              #Heat duty J/min of inlet stream
 Q_jacket_400 = Q_gen_400 - Q_inlet_400          #Heat duty J/min of cooling jacket T = 400K    
 Tc_400 = 400 - (Q_jacket_400/UA)                #Jacket Temperature at T = 400K
 mc_400 = Q_jacket_400/(Cpc*(Tc_400 - Tc_in))    #Coolant mass flow rate T = 400K
-Q_rem = (rho*Cp*v0*(T - T0) + UA*(T - Tc_400))  #Heat removal J/min
-
+Q_rem_Tc = (rho*Cp*v0*(T - T0) + UA*(T - Tc_400))  #Heat removal J/min
+UAeff = (UA*mc*Cpc)/(mc*Cpc+ UA)
+Q_rem_mc = (rho*Cp*v0*(T - T0)) + UAeff*(T - Tc_in)
 
 print(f"--- Operating Point Verification at T = 400 K ---")
 print(f"Conversion X_A:          {X_A_400 * 100:.2f}%")
@@ -59,17 +60,18 @@ print(f"Heat Generated:          {Q_gen_400:.2f} J/min")
 print(f"Inlet Stream Load:       {Q_inlet_400:.2f} J/min")
 print(f"Required Jacket Duty:    {Q_jacket_400:.2f} J/min")
 print(f"Required Coolant Temp:   {Tc_400:.2f} K ({Tc_400 - 273.15:.2f} °C)")
-print(f"Coolant Mass Flow Rate:  {mc_400:.3f} kg/s\n")
+print(f"Coolant Mass Flow Rate:  {mc_400:.3f} kg/min\n")
 
 
 # --- Plotting ---
 plt.figure(figsize=(8, 5))
 plt.plot(T, Q_gen, "r-", linewidth=2, label="Q_gen (T): Heat Generation")
-plt.plot(T, Q_rem, "b-", linewidth=2, label="Q_rem (T): Heat Removal (Fixed $T_c$)")
+plt.plot(T, Q_rem_Tc, "b-", linewidth=2, label="Q_rem_Tc (T): Heat Removal (Fixed $T_c$)")
+plt.plot(T, Q_rem_mc, "g-", linewidth=2, label="Q_rem_mc (T): Heat Removal (Fixed $T_c$)")
 
 plt.title("Van Heerden Diagram for Jacketed CSTR")
 plt.xlabel("Reactor Temperature $T$ (K)")
-plt.ylabel("Heat Rate (kW)")
+plt.ylabel("Heat Rate (J/min)")
 plt.grid(True, linestyle="--", alpha=0.6)
 plt.legend()
 plt.tight_layout()
