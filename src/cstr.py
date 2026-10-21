@@ -25,6 +25,7 @@ class CSTRParams:
     @property
     def tau(self):
         return self.V / self.v0          # space-time, min
+    
     @property
     def F_A0(self):
         return self.v0*self.C_A0       # molar feed rate (mol/min)
@@ -42,17 +43,16 @@ def rate_constant(T, p):
 
 def heat_duties(T, params=None):
     p = default_params() if params is None else params
-    k = rate_constant(T_target,p) #rate constant (1/min)
+    k = rate_constant(T,p) #rate constant (1/min)
     conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
     Q_gen = ((-p.delta_H_rxn))*(k*C_A*p.V) #Heat gen J/min
-    Q_inlet = p.rho*p.Cp_feed*p.v0*(T_target - p.T0) #Heat duty J/min of inlet stream at T = 400K
-    Q_jacket = Q_gen - Q_inlet #Heat duty J/min of cooling jacket T = 400K 
+    Q_inlet = p.rho*p.Cp_feed*p.v0*(T - p.T0) #Heat duty J/min of inlet stream
+    Q_jacket = Q_gen - Q_inlet #Heat duty J/min of cooling jacket 
     return Q_gen, Q_inlet, Q_jacket
     
     
 def solve_steady_state(T_target, params=None):
-    #return (Ca mol/m^3, T(K), Tc(K), mc(kg/min), conversion()) at temperture T_target
     p = default_params() if params is None else params
     k = rate_constant(T_target,p)
     conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
@@ -61,6 +61,7 @@ def solve_steady_state(T_target, params=None):
     Tc_target = T_target - (Q_jacket/p.UA) #coolant temperature at jacket (K)
     mc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
     return C_A, T_target, Tc_target, mc_target, conversion
+
 
 if __name__ == "__main__":
     T_target = float(input("Enter target reactor temperture (K): "))
