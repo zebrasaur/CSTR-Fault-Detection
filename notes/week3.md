@@ -13,7 +13,7 @@ differentiated the heat removal term by keeping Tc constant. Then differentiated
 ## What I did not understand at first
 how distubrances and faults are classified. slope stability criterion. Van Heerden Thermal Multiplicity Diagram. sigmoidal functions. Bifurcation & Hysteresis Loop Diagram
 ## Decisions I made, and why
-derive various cstr analytical soultions first. Used 400K because thats what the plan called for.do all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write code to calculate parameters and heat terms and plot them using a 500 element temperature array. Check plots for steady state and sanity check.
+derive various cstr analytical soultions first. Used 400K because thats what the plan called for.do all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write code to calculate parameters and heat terms and plot them using a 500 element temperature array. Check plots for steady state and sanity check.converted everything to /minute instead of /second to give the tau (space-time) check more time for faults and fowling. built removal functions for keeping both Tc and mc constant.
 <!-- Every arbitrary-looking choice needs its reason recorded NOW, while
      you still have it. "Why 400 K?" is only answerable in week 6 if you
      wrote it down in week 3. -->
