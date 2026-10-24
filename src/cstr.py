@@ -103,6 +103,6 @@ if __name__ == "__main__":
     print(f"Required Jacket Duty:       {Q_jacket:.2f} J/min")
     print(f"Required Coolant Temp:      {Tc:.2f} K ({Tc - 273.15:.2f} °C)")
     print(f"Coolant Mass Flow Rate:     {mc:.3f} kg/min\n")
-    print(f"solved:                     {residual}")
+    print(f":dC_A_dt, dT_dt, dTc_dt     {residual}")
 
 
