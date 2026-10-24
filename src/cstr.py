@@ -9,13 +9,16 @@ class CSTRParams:
     C_A0: float = 2500.0    #feed concentration (mol/m^3)
     T0: float = 300.0        #Feed reactant temperature (K)
     Tc_in: float = 293.15   #Feed coolant temperature (K)
-
+    Vc: float = 0.1195      # volume of coolant (m^3) using 3" half-pipe jacket
+    
+    
         # Fluid and Heat Transfer Properties
     Cp_feed: float = 4000.0             #specific heat capacity of feed (J/(kg*K))
     Cp_coolant: float = 4184.0          #specific heat capacity of coolant (J/kg*K)
     UA: float = 600_000.0               #overall heat transfer capacity (J/min*K)
     delta_H_rxn: float = -250_000.0     #Heat of reaction (J/mol) exothermic
     rho: float = 1000.0                 #fluid density (kg/m^3)
+    rho_c: float = 1000.0               #fluid density of coolant (kg/m^3)
     
         # Kinetic Parameters: k(T) = k_ref * exp[(Ea/R) * (1/T_ref - 1/T)]
     k_ref: float = 0.0075       # Rate constant at T_ref (1/min)
@@ -41,8 +44,7 @@ def rate_constant(T, p):
     k = p.k_ref*np.exp(p.Ea_over_R*(1/(p.T_ref) - 1/T))
     return k
 
-def heat_duties(T, params=None):
-    p = default_params() if params is None else params
+def heat_duties(T, p):
     k = rate_constant(T,p) #rate constant (1/min)
     conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
@@ -52,8 +54,7 @@ def heat_duties(T, params=None):
     return Q_gen, Q_inlet, Q_jacket
     
     
-def solve_steady_state(T_target, params=None):
-    p = default_params() if params is None else params
+def solve_steady_state(T_target, p):
     k = rate_constant(T_target,p)
     conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
@@ -62,9 +63,8 @@ def solve_steady_state(T_target, params=None):
     mc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
     return C_A, T_target, Tc_target, mc_target, conversion
 
-def stability_margin(T_target, params=None):
+def stability_margin(T_target, p):
     """ Return dQgen_dT, dQremoved_dT per unit reactor volume (J/min*K*m^3)"""
-    p = default_params() if params is None else params
     C_A, T, Tc_target, mc_target, X_A = solve_steady_state(T_target, p)
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     dQgen_dT = (-p.delta_H_rxn)*p.F_A0*((X_A*(1-X_A))*(p.Ea_over_R/(T_target)**2))
@@ -72,15 +72,27 @@ def stability_margin(T_target, params=None):
     dQremoved_dT = p.rho*p.Cp_feed*p.v0 + UAeff
     return dQgen_dT / p.V, dQremoved_dT / p.V
 
-def derivatives(y, t, p, qc):
-
+def derivatives(y, t, p, mc):
+    #Time derivatives [dCa/dt, dT/dt, dTc/dt], per minute.
+    #y = [Ca (mol/m^3), T (K), Tc (K)]; qc = coolant flow (kg/min)
+    C_A, T, Tc = y[0], y[1], y[2]
+    k = rate_constant(T, p)
+    dC_A_dt = ((p.C_A0 - C_A) / p.tau) - k*C_A
+    beta_reactor = (-p.delta_H_rxn)/(p.rho*p.Cp_feed)
+    gamma_reactor = (p.UA)/(p.V*p.rho*p.Cp_feed)
+    dT_dt = ((p.T0 - T)/p.tau) + (beta_reactor*k*C_A) - (gamma_reactor*(T- Tc))
+    gamma_coolant = (p.UA)/(p.Vc*p.rho_c*p.Cp_coolant)
+    dTc_dt = (mc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
+    return np.array([dC_A_dt, dT_dt, dTc_dt])
 
 
 if __name__ == "__main__":
     T_target = float(input("Enter target reactor temperture (K): "))
-    C_A, T_target, Tc, mc, X_A = solve_steady_state(T_target)
-    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target)
-
+    p = default_params()
+    C_A, T_target, Tc, mc, X_A = solve_steady_state(T_target,p)
+    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
+    y = [C_A, T_target, Tc]
+    residual = derivatives(np.array(y), 0.0, p, mc)
 
 
     print(f"--- Operating Point Verification at T = {T_target:.2f} K ---")
@@ -91,4 +103,6 @@ if __name__ == "__main__":
     print(f"Required Jacket Duty:       {Q_jacket:.2f} J/min")
     print(f"Required Coolant Temp:      {Tc:.2f} K ({Tc - 273.15:.2f} °C)")
     print(f"Coolant Mass Flow Rate:     {mc:.3f} kg/min\n")
+    print(f"solved:                     {residual}")
+
 
