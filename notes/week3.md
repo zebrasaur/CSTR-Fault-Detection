@@ -21,7 +21,7 @@ derive various cstr analytical soultions first. Used 400K because thats what the
 ## Interview gate — answered out loud, no notes
 
 - [ ] Why does this reactor have three steady states? Which one are you
-      on, and how do you know? every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch betwen the dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch,
+      on, and how do you know? ANS: every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch where dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. the generation function reaches maximum when conversion reaches 1, all of the reactant is already gone so the reactor cant generate any more heat. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch,
 - [ ] Where does the fouling fault show up, and where does it NOT? Why?
 - [ ] What is integral windup, and what did you do about it?
 
@@ -84,3 +84,7 @@ The feed does most of the heat removal. The jacket provides almost all of the st
 Sun       2                   "
 Mon       2    19th           "
 Tues      4    20th      coding, math, plots, cleanup
+wed       4              dynamic cstr
+thur      4              math clean up 
+frid      4              code clean up
+sat       4    24        dynamic cstr

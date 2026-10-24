@@ -72,6 +72,9 @@ def stability_margin(T_target, params=None):
     dQremoved_dT = p.rho*p.Cp_feed*p.v0 + UAeff
     return dQgen_dT / p.V, dQremoved_dT / p.V
 
+def derivatives(y, t, p, qc):
+
+
 
 if __name__ == "__main__":
     T_target = float(input("Enter target reactor temperture (K): "))
