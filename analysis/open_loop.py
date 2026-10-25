@@ -32,10 +32,10 @@ if __name__ == "__main__":
     h = 0.25                          #time step or dt in minutes 
     t_range = (0.0, 200.0)            #simulate for 200 minutes
     C_A, T, Tc, mc, X_A = solve_steady_state(400.0,p)  #ss values
-    y_initial = [C_A, T, Tc]         #initial state vector
-    y_b = [C_A, T + 2.0, Tc]         #b case T
-    y_c = [C_A, T -10.0, Tc]         #c case T
-    y_d = [600, 390, 345]            #d case non steady state initial
+    y_initial = [C_A, T, Tc]         #initial state vector from Steady State
+    y_b = [C_A, T + 2.0, Tc]         #b case: Temperature changed
+    y_c = [C_A, T -10.0, Tc]         #c case: Temperature changed
+    y_d = [600.0, 390.0, 345.0]      #d case: (designed start up values)
 
 
     time, states_initial = solve_cstr_dynamic(y_initial, t_range, h, mc)
@@ -59,43 +59,76 @@ if __name__ == "__main__":
     print(f"Final Reactor Temp d case:     {states_d[-1, 1]:.5f} K")
     print(f"Final Jacket Temp d case:      {states_d[-1, 2]:.5f} K")
 
-    fig, (ax1) = plt.subplots(figsize=(9, 6))
-
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+    
     # Subplot 1: Thermal Convergence
+    
     ax1.plot(
         time,
         states_initial[:, 1],
-        "r-",
+        "m-",
         linewidth=2,
-        label="Steady State Reactor Temperature $T(t)$",
+        label="Start at Steady State Temperature $T(t)$",
     )
     ax1.plot(
         time,
         states_b[:, 1],
-        "b--",
+        "b-",
         linewidth=1.8,
         label="Case b Reactor Temperature $T(t)$",
     )
     ax1.plot(
         time,
         states_c[:, 1],
-        "g:",
-        linewidth=1.5,
+        "g-",
+        linewidth=1.8,
         label="Case c Reactor Temperature $T(t)$",
     )
     ax1.plot(
         time,
         states_d[:, 1],
-        "m+",
+        "r-",
         linewidth=1.8,
         label="Case d Reactor Temperature $T(t)$",
     )
-    ax1.set_title("CSTR Dynamic Trajectory Simulation (RK4)", fontweight="bold")
+    ax1.set_title("Open loop CSTR (coolant flow frozen at steady state)", fontweight="bold")
     ax1.set_ylabel("Temperature (K)", fontsize=11)
     ax1.set_xlabel("Time (min)", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
-    ax1.legend(loc="upper right")
+    ax1.legend(loc="center right")
+    
+    #Subplot 2: Reactant Concentration
+    
+    ax2.plot(
+    time,
+    states_b[:, 0],
+    "b-",
+    linewidth=2,
+    label="Reactant Concentration for cases b $C_A(t)$",
+    )
+    ax2.plot(
+    time,
+    states_c[:, 0],
+    "g-",
+    linewidth=2,
+    label="Reactant Concentration for cases c $C_A(t)$",
+    )
+    ax2.plot(
+    time,
+    states_d[:, 0],
+    "r-",
+    linewidth=2,
+    label="Reactant Concentration for cases d $C_A(t)$",
+    )
+   
+    # Fixed label with raw string and matched braces
+    ax2.axhline(530.7, color="gray", linestyle=":", label=r"Target $C_{A,ss}$")
+    ax2.set_xlabel("Time (minutes)", fontsize=11)
+    ax2.set_ylabel("Concentration ($mol/m^3$)", fontsize=11)
+    ax2.grid(True, linestyle="--", alpha=0.5)
+    ax2.legend(loc="upper right")
+
 
     plt.tight_layout()
-    plt.savefig(Path(__file__).resolve().parent.parent / "figures" / "Dynamic_property_plots.png", dpi=150)
+    plt.savefig(Path(__file__).resolve().parent.parent / "figures" / "open_loop_plots.png", dpi=150)
     plt.show()       

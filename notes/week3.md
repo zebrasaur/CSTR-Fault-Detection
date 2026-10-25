@@ -12,7 +12,7 @@ differentiated the heat removal term by keeping Tc constant. Then differentiated
 
 ## What I did not understand at first
 how distubrances and faults are classified. slope stability criterion. Van Heerden Thermal Multiplicity Diagram. sigmoidal functions. Bifurcation & Hysteresis Loop Diagram. control loop and coolant residence time calculations
-My steady-state stability analysis said 17 K of margin to reactor death. Simulation showed a sudden 5 K dip would extinguish the reactor with the valve frozen, because the diagram assumes concentration has already settled at the new temperature while my simulation used the concentration value at T = 400k, the steady state value, this produced a generation term that was 25% below the van heerden diagram. As T falls, generation falls and CA cant refill fast enough to recover.
+My steady-state stability analysis said 17 K of margin to reactor death. Simulation showed dips larger than 5.2 K  would extinguish the reactor with the valve frozen, because the diagram assumes concentration has already settled at the new temperature while my simulation used the concentration value at T = 400k, the steady state value, this produced a generation term that was 25% below the van heerden diagram. As T falls, generation falls and CA can't refill fast enough to recover.
 
 Test results
 Starting state at T = 390 K, valve frozen	    |      Final T

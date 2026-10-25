@@ -55,7 +55,10 @@ def heat_duties(T, p):
     return Q_gen, Q_inlet, Q_jacket
     
     
-def solve_steady_state(T_target, p):
+def solve_steady_state(T_target, params=None):
+    #Solve for the steady state properties
+    
+    p = default_params() if params is None else params
     k = rate_constant(T_target,p)
     conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
@@ -64,8 +67,10 @@ def solve_steady_state(T_target, p):
     mc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
     return C_A, T_target, Tc_target, mc_target, conversion
 
-def stability_margin(T_target, p):
-    """ Return dQgen_dT, dQremoved_dT per unit reactor volume (J/min*K*m^3)"""
+def stability_margin(T_target, params=None):
+    #Return dQgen_dT, dQremoved_dT per unit reactor volume (J/min*K*m^3)
+    
+    p = default_params() if params is None else params
     C_A, T, Tc_target, mc_target, X_A = solve_steady_state(T_target, p)
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     dQgen_dT = (-p.delta_H_rxn)*p.F_A0*((X_A*(1-X_A))*(p.Ea_over_R/(T_target)**2))
