@@ -1,3 +1,4 @@
+import numpy as np
 
 def rk4_step(f, y: np.ndarray, t: float, h: float, *args):
     """

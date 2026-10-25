@@ -12,6 +12,29 @@ differentiated the heat removal term by keeping Tc constant. Then differentiated
 
 ## What I did not understand at first
 how distubrances and faults are classified. slope stability criterion. Van Heerden Thermal Multiplicity Diagram. sigmoidal functions. Bifurcation & Hysteresis Loop Diagram. control loop and coolant residence time calculations
+My steady-state stability analysis said 17 K of margin to reactor death. Simulation showed a sudden 5 K dip would extinguish the reactor with the valve frozen, because the diagram assumes concentration has already settled at the new temperature while my simulation used the concentration value at T = 400k, the steady state value, this produced a generation term that was 25% below the van heerden diagram. As T falls, generation falls and CA cant refill fast enough to recover.
+
+Test results
+Starting state at T = 390 K, valve frozen	    |      Final T
+==============================================================================
+C_A = 530.75 (the 400 K value), original case (c)|    302.45 K, extinguished
+C_A = 709.09 (settled at 390 K), Tⱼ at the 400 K |    400.00 K, recovers
+C_A = 709.09, Tⱼ = 348.16 (also settled at 390 K |    400.00 K, recovers
+Case (d) with C_A = 709.09 instead of 600	    |    400.00 K, recovers, even with the 345 K jacket
+
+reactant deficit, not the temperature caused the extinction is prior cases
+
+Feed temperature step	          Final T
+===============================================================================
+     −5 K	                    297.3 K, extinguished
+     −10 K	               292.5 K, extinguished
+     −20 K	               283.3 K, extinguished
+The deeper finding: reactor operating point sits near the “nose”. the heat curves are almost nearly tangent
+
+Feed-temperature drop that eliminates the ignited steady state, valve frozen	1.04 K
+
+with coolant flow at zero, removal is only the feed flow term, so it can absorb feed drops of up to about 23 K (from 2,462 kW = 20 kW/K × (400 − T0), T0 ≥ 276.9 K). So 1 K open-loop reactor becomes about 23 K closed-loop reactor. running at 400 K with these parameters leaves almost no open-loop margin and the controller must handle all pertubations to keep stability
+
 
 ## Decisions I made, and why
 derive various cstr analytical soultions first. Used 400K because thats what the plan called for and gemni gave me the parapmeters for testing the rest of the CSTR (checked if these made sense using cooling water as coolant).did all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write functions to calculate steady-state parameters and heat terms and plot them using a 500 element temperature array. Check plots for steady state and sanity check.converted everything to /minute instead of /second to give the tau (space-time) check (in check.py) more time for faults and fowling. built removal functions for keeping both Tc and mc constant.rewrote everything into cstr.py to conform with check.py. looked into different cooling jacket geometries (using steady state mc) including using annular jacket volume with a inner jacket wall set to 0.050m (high space-time), using coils directly inside the reactor (lowest spacetime), and using half-pipe flow weilded directly to reactor surface and bottom head (middle spacetime). decided on the half-pipe flow because its a resonable design decision with a spacetime of 1.1 minutes. the variable coolant flow rate can be passed directly into the deriviatives with the required coolant volume in the half pipes. the manipulated variable is coolant flow rate and the hold up is the mass of coolant in the half pipes
@@ -59,14 +82,14 @@ Removal assumption	      Low	       Middle       Operating	   deltaT unstable st
 Tc held fixed (blue)	337.3 K	 354.3 K	       400 K	          46 K
 Coolant flow held fixed 	302.5 K	 382.6 K	       400 K	          17 K
 
-Question 3: With the coolant valve froze at its steady state value, which is what “open loop” means for this reactor: (a) at T = 400k the reactor stays at 400k as removal = generation (b) at T = 402 the reactor recovers to 400K as removal > generation (c) at T = 390K the reactor recovers to 400k as generation is > than removal (d) the reactor approaches 400k as generation is still > than removal and we are still above the unstable middle at 383.6 K. It would take a  17 K dip in reactor temperature to cross the unstable middle state with the coolant valve frozen open. From there the reactor falls to the extinguished steady state near 302 K and conversion collapses.
+Question 3: With the coolant valve froze at its steady state value, which is what “open loop” means for this reactor: (a) at T = 400k the reactor stays at 400k as removal = generation (b) at T = 402 the reactor recovers to 400K as removal > generation (c) at T = 390K the reactor recovers to 400k as generation is > than removal (d) the reactor approaches 400k as generation is still > than removal and we are still above the unstable middle at 382.6 K. It would take a  17 K dip in reactor temperature to cross the unstable middle state with the coolant valve frozen open. From there the reactor falls to the extinguished steady state near 302 K and conversion collapses.
 
 
 d(Q_jacket)/dT = dQgen/dT − ρ·v0·Cp_feed = 19.60 − 20.00 = −0.40 kW/K
 
-	Margin (removal slope − generation slope)
-Feed alone (dQfeed/dT)	20.00 − 19.60 = 0.40 kW/K 
-Feed + jacket[coolant flow fixed (dQremoved/dT)]	24.32 − 19.60 = 4.72 kW/K
+	Margin (removal slope − generation slope(19.6))
+Feed alone:	20.00 − 19.60 = 0.40 kW/K 
+Feed + jacket[coolant flow fixed]:	24.32 − 19.60 = 4.72 kW/K
 The feed does most of the heat removal. The jacket provides almost all of the stability.
 
 
