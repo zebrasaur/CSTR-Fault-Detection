@@ -75,25 +75,24 @@ if __name__ == "__main__":
         states_b[:, 1],
         "b-",
         linewidth=1.8,
-        label="Case b Reactor Temperature $T(t)$",
+        label="Case b: T + 2 K $T(t)$",
     )
     ax1.plot(
         time,
         states_c[:, 1],
         "g-",
         linewidth=1.8,
-        label="Case c Reactor Temperature $T(t)$",
+        label="Case c: T - 10 K $T(t)$",
     )
     ax1.plot(
         time,
         states_d[:, 1],
         "r-",
         linewidth=1.8,
-        label="Case d Reactor Temperature $T(t)$",
+        label="Case d: start-up [CA:600, T:390, Tc:345] $T(t)$",
     )
     ax1.set_title("Open loop CSTR (coolant flow frozen at steady state)", fontweight="bold")
     ax1.set_ylabel("Temperature (K)", fontsize=11)
-    ax1.set_xlabel("Time (min)", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(loc="center right")
     
@@ -104,29 +103,28 @@ if __name__ == "__main__":
     states_b[:, 0],
     "b-",
     linewidth=2,
-    label="Reactant Concentration for cases b $C_A(t)$",
+    label="Reactant Concentration for cases b: T+ 2 K $C_A(t)$",
     )
     ax2.plot(
     time,
     states_c[:, 0],
     "g-",
     linewidth=2,
-    label="Reactant Concentration for cases c $C_A(t)$",
+    label="Reactant Concentration for cases c: T - 10 K $C_A(t)$",
     )
     ax2.plot(
     time,
     states_d[:, 0],
     "r-",
     linewidth=2,
-    label="Reactant Concentration for cases d $C_A(t)$",
+    label="Reactant Concentration for cases d: start-up [CA:600, T:390, Tc:345] $C_A(t)$",
     )
    
-    # Fixed label with raw string and matched braces
-    ax2.axhline(530.7, color="gray", linestyle=":", label=r"Target $C_{A,ss}$")
+    ax2.axhline(C_A, color="gray", linestyle=":", label=r"Steady state $C_{A,ss}$")
     ax2.set_xlabel("Time (minutes)", fontsize=11)
     ax2.set_ylabel("Concentration ($mol/m^3$)", fontsize=11)
     ax2.grid(True, linestyle="--", alpha=0.5)
-    ax2.legend(loc="upper right")
+    ax2.legend(loc="center right")
 
 
     plt.tight_layout()
