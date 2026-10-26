@@ -29,7 +29,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, mc, p=p):
 
 if __name__ == "__main__":
     
-    h = 0.25                          #time step or dt in minutes 
+    h = 0.05                          #time step or dt in minutes 
     t_range = (0.0, 200.0)            #simulate for 200 minutes
     C_A, T, Tc, mc, X_A = solve_steady_state(400.0,p)  #ss values
     y_initial = [C_A, T, Tc]         #initial state vector from Steady State
