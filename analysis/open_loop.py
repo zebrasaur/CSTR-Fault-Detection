@@ -89,7 +89,7 @@ if __name__ == "__main__":
         states_d[:, 1],
         "r-",
         linewidth=1.8,
-        label="Case d: designed start-up  $T(t)$",
+        label="Case d: T = 475 designed start-up  $T(t)$",
     )
     ax1.set_title("Open loop CSTR (coolant flow frozen at steady state)", fontweight="bold")
     ax1.set_ylabel("Temperature (K)", fontsize=11)
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     axins = ax1.inset_axes([0.21, 0.20, 0.32, 0.52])
     axins.plot(time, states_d[:, 1], "r-", linewidth=1.5)
     axins.axhline(T, color="gray", linestyle=":", linewidth=1)
-    axins.set_xlim(0, 5)
-    axins.set_ylim(425.5, 485.5)
+    axins.set_xlim(0, 1.5)
+    axins.set_ylim(475.5, 500.5)
     axins.set_title("(b) zoom: overshoot, then undershoot", fontsize=9)
     axins.tick_params(labelsize=8)
     axins.grid(True, linestyle="--", alpha=0.4)
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     states_d[:, 0],
     "r-",
     linewidth=2,
-    label="Reactant Concentration for cases d: designed start-up $C_A(t)$",
+    label="Reactant Concentration for cases d: T = 475 designed start-up $C_A(t)$",
     )
    
     ax2.axhline(C_A, color="gray", linestyle=":", label="Steady state $C_A,ss$")
