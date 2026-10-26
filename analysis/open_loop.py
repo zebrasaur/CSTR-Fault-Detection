@@ -35,7 +35,7 @@ if __name__ == "__main__":
     y_initial = [C_A, T, Tc]         #initial state vector from Steady State
     y_b = [C_A, T + 2.0, Tc]         #b case: Temperature changed
     y_c = [C_A, T -10.0, Tc]         #c case: Temperature changed
-    y_d = [600.0, 390.0, 345.0]      #d case: (designed start up values)
+    y_d = [C_A, 475.0, Tc]      #d case: (designed start up values)
 
 
     time, states_initial = solve_cstr_dynamic(y_initial, t_range, h, mc)
@@ -89,12 +89,23 @@ if __name__ == "__main__":
         states_d[:, 1],
         "r-",
         linewidth=1.8,
-        label="Case d: start-up [CA:600, T:390, Tc:345] $T(t)$",
+        label="Case d: designed start-up  $T(t)$",
     )
     ax1.set_title("Open loop CSTR (coolant flow frozen at steady state)", fontweight="bold")
     ax1.set_ylabel("Temperature (K)", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
-    ax1.legend(loc="center right")
+    ax1.legend(loc="center right", fontsize=9)
+
+    # Inset: zoom on case (b)
+    axins = ax1.inset_axes([0.21, 0.20, 0.32, 0.52])
+    axins.plot(time, states_d[:, 1], "r-", linewidth=1.5)
+    axins.axhline(T, color="gray", linestyle=":", linewidth=1)
+    axins.set_xlim(0, 5)
+    axins.set_ylim(425.5, 485.5)
+    axins.set_title("(b) zoom: overshoot, then undershoot", fontsize=9)
+    axins.tick_params(labelsize=8)
+    axins.grid(True, linestyle="--", alpha=0.4)
+    ax1.indicate_inset_zoom(axins, edgecolor="gray")
     
     #Subplot 2: Reactant Concentration
     
@@ -117,10 +128,10 @@ if __name__ == "__main__":
     states_d[:, 0],
     "r-",
     linewidth=2,
-    label="Reactant Concentration for cases d: start-up [CA:600, T:390, Tc:345] $C_A(t)$",
+    label="Reactant Concentration for cases d: designed start-up $C_A(t)$",
     )
    
-    ax2.axhline(C_A, color="gray", linestyle=":", label=r"Steady state $C_{A,ss}$")
+    ax2.axhline(C_A, color="gray", linestyle=":", label="Steady state $C_A,ss$")
     ax2.set_xlabel("Time (minutes)", fontsize=11)
     ax2.set_ylabel("Concentration ($mol/m^3$)", fontsize=11)
     ax2.grid(True, linestyle="--", alpha=0.5)
