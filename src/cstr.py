@@ -1,5 +1,10 @@
 import numpy as np
 from dataclasses import dataclass, replace
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+from integrate import rk4_step
+
 
 @dataclass(frozen=True)
 class CSTRParams:
@@ -37,6 +42,7 @@ class CSTRParams:
 def default_params():
     return CSTRParams()
 
+p = default_params()       
 
 
 
@@ -90,6 +96,26 @@ def derivatives(y, t, p, mc):
     gamma_coolant = (p.UA)/(p.Vc*p.rho_c*p.Cp_coolant)
     dTc_dt = (mc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
     return np.array([dC_A_dt, dT_dt, dTc_dt])
+
+def solve_cstr_dynamic(y_initial, t_range, h, mc, p=p):
+    #simulates the cstr using a 2D trajectory array
+    
+    t_start, t_end = t_range        #time in minutes
+    t_points = np.arange(t_start, t_end+(h/2.0), h) #time grid in minutes
+    num_steps = len(t_points)
+    y_curr = np.asarray(y_initial)
+    state_dim = y_curr.shape[0]
+    trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
+    trajectory[0,:] = y_curr
+    
+    #March time forward
+    for i in range(num_steps-1):
+        t_curr = t_points[i]
+        step_h = t_points[i + 1] - t_curr
+        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc)
+        trajectory[i+1,:] = y_curr
+    return t_points, trajectory
+
 
 
 if __name__ == "__main__":

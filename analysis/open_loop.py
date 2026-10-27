@@ -27,6 +27,9 @@ def solve_cstr_dynamic(y_initial, t_range, h, mc, p=p):
         trajectory[i+1,:] = y_curr
     return t_points, trajectory
 
+
+#Simuolation parameters:
+
 if __name__ == "__main__":
     
     h = 0.05                          #time step or dt in minutes 
