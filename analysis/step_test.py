@@ -8,6 +8,7 @@ from integrate import rk4_step
 
 p = default_params()       
 
+
 h = 0.05                          #time step or dt in minutes 
 t_range = (0.0, 60.0)            #simulate time in minutes
 
@@ -20,7 +21,7 @@ y_d = [C_A, 475.0, Tc]           #d case: (designed start up values)
 
 
 #step test with mc
-mc_step = mc_ss*(1-0.03)
+mc_step = mc_ss*(1+0.03)
 
 #solve
 time, states = solve_cstr_dynamic(y_initial, t_range, h, mc_step)
@@ -60,10 +61,12 @@ else:  # Trajectory heats up (y increases)
 
 tau_1 = 1.5*(t_63 - t_28)
 theta = t_63 - tau_1
+tau_c = 1.5*theta
+Kc = tau_1 / ( abs(Kp)*(tau_c + theta) )
+tau_I =min(tau_1 ,4*(tau_c + theta) )
 
-print(
-        f"T28 = {y_28}, T63 = {y_63}, "
-        f"t_28 = {t_28}, t_63 = {t_63}, "
-        f"tau = {tau_1}, Kp = {Kp}, theta = {theta}, "
-        f" mc,ss = {mc_ss}"
-)
+print(f"mc_step =  {mc_step}")
+print(f"T28 =   {y_28}, T63 = {y_63}")
+print(f"t_28 =  {t_28}, t_63 = {t_63}")
+print(f"tau =   {tau_1}, Kp = {Kp}, theta = {theta}")
+print(f"Kc =    {Kc}, tau_I = {tau_I}")

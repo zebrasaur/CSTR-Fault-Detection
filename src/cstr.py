@@ -4,6 +4,9 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from integrate import rk4_step
+from controller import CSTRCoolantPI, PIParams
+
+
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,7 @@ class CSTRParams:
 def default_params():
     return CSTRParams()
 
+config = PIParams()
 p = default_params()       
 
 
@@ -98,7 +102,7 @@ def derivatives(y, t, p, mc):
     return np.array([dC_A_dt, dT_dt, dTc_dt])
 
 def solve_cstr_dynamic(y_initial, t_range, h, mc, p=p):
-    #simulates the cstr using a 2D trajectory array
+    '''simulates the cstr using a 2D trajectory array'''
     
     t_start, t_end = t_range        #time in minutes
     t_points = np.arange(t_start, t_end+(h/2.0), h) #time grid in minutes
@@ -106,15 +110,51 @@ def solve_cstr_dynamic(y_initial, t_range, h, mc, p=p):
     y_curr = np.asarray(y_initial)
     state_dim = y_curr.shape[0]
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
-    trajectory[0,:] = y_curr
+    mc_history = np.empty((num_steps, state_dim), dtype=np.float64)
+    Kc_history = np.empty((num_steps, state_dim), dtype=np.float64)
+    tauI_history = np.empty((num_steps, state_dim), dtype=np.float64)
     
-    #March time forward
+    controller = CSTRCoolantPI(config, setpoint = 400.0)
+
+    trajectory[0,:] = y_curr
+    mc_history[0] = controller.cfg.u_bias
+    Kc_history[0] = controller.cfg.Kc
+    tauI_history[0] = controller.cfg.tau_I
+
+    #Move time forward
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
-        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc)
+        current_temp = y_curr[1]
+        temp_error = abs(current_temp - controller.setpoint)
+        
+        mc_val = controller.compute(measurement=current_temp, dt=step_h)
+        mc_history[i] = mc_val
+        
+        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_val)  #RK4 step
+        
+        dmc = mc_val - mc
+        Kp = temp_error/dmc
+        y_third = 0.2835                       #smith 2 point fit 1/3
+        y_full = 0.6321                       #smith 2 point fit 1.0
+        y_28 = controller.setpoint + y_third*temp_error
+        y_63 = controller.setpoint + y_full*temp_error
+        t_28 = t_points[i]
+        t_63 = t_points[i]
+
+        tau_1 = 1.5*(t_63 - t_28)
+        theta = t_63 - tau_1
+        tau_c = 1.5*theta
+        Kc = tau_1 / ( abs(Kp)*(tau_c + theta) )
+        tau_I = min(tau_1 ,4*(tau_c + theta) )
+        controller.cfg.Kc = Kc
+        controller.cfg.tau_I = tau_I
+        Kc_history[i] = controller.cfg.Kc
+        tauI_history[i] = controller.cfg.tau_I
+
         trajectory[i+1,:] = y_curr
-    return t_points, trajectory
+        
+    return t_points, trajectory, mc_history, Kc_history, tauI_history
 
 
 
@@ -125,6 +165,12 @@ if __name__ == "__main__":
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     y = [C_A, T_target, Tc]
     residual = derivatives(np.array(y), 0.0, p, mc)
+    h = 0.05                          #time step or dt in minutes 
+    t_range = (0.0, 60.0)            #simulate time in minutes
+    mc_step = mc*(1+0.03)
+
+    time, states, mc_history, Kc_history, tauI_history = solve_cstr_dynamic(y, t_range, h, mc_step, p)
+    
 
 
     print(f"--- Operating Point Verification at T = {T_target:.2f} K ---")
@@ -136,5 +182,12 @@ if __name__ == "__main__":
     print(f"Required Coolant Temp:      {Tc:.2f} K ({Tc - 273.15:.2f} °C)")
     print(f"Coolant Mass Flow Rate:     {mc:.3f} kg/min\n")
     print(f":dC_A_dt, dT_dt, dTc_dt     {residual}")
-
+    print(f"===================================================================")
+    print(f"mc_step =  {mc_step}")
+    print(f"Final Concentration :         {states[-1, 0]:.5f} mol/m^3")
+    print(f"Final Reactor Temp :          {states[-1, 1]:.5f} K")
+    print(f"Final Jacket Temp :           {states[-1, 2]:.5f} K")
+    print(f"Final mc value:               {mc_history[-1, 0]:.5f} mol/m^3")
+    print(f"Final Kc value:               {Kc_history[-1, 0]:.5f} K")
+    print(f"Final tau_I value:            {tauI_history[-1, 0]:.5f} K")
 
