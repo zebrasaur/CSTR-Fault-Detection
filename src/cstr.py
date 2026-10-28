@@ -173,7 +173,7 @@ if __name__ == "__main__":
     
 
 
-    print(f"--- Operating Point Verification at T = {T_target:.2f} K ---")
+    print(f"--- sterady state Operating Point Verification at T = {T_target:.2f} K ---")
     print(f"Exit stream concentration:  {C_A:.2f} mol/m^3")
     print(f"Conversion:                 {X_A * 100:.2f} %")
     print(f"Heat Generated:             {Q_gen:.2f} J/min")
