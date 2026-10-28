@@ -12,8 +12,6 @@ class PIParams:
     u_max: float = 218.1118  # Maximum actuator limit/minute (e.g., 200% nominal)
   
   
-def config():
-    return PIParams()
 
 class CSTRCoolantPI:
 
