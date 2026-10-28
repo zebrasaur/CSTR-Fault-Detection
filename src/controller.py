@@ -2,14 +2,14 @@ from dataclasses import dataclass
 import numpy as np
 
 
-@dataclass
+@dataclass(frozen=True)
 
 class PIParams:
-  Kc: float = 1.4012 # Proportional gain: kg/(minute*K)
-  tau_I: float = 4.1228 # Integral time constant:  minute
-  u_bias: float = 109.0559  # Nominal steady-state flow rate/minute (m_c,ss)
-  u_min: float = 0.0  # Minimum actuator limit
-  u_max: float = 218.1118  # Maximum actuator limit/minute (e.g., 200% nominal)
+    Kc: float = 1.8619 # Proportional gain: kg/(minute*K)
+    tau_I: float = 4.1228 # Integral time constant:  minute
+    u_bias: float = 109.0559  # Nominal steady-state flow rate/minute (m_c,ss)
+    u_min: float = 0.0  # Minimum actuator limit
+    u_max: float = 218.1118  # Maximum actuator limit/minute (e.g., 200% nominal)
   
   
 def config():
@@ -17,15 +17,15 @@ def config():
 
 class CSTRCoolantPI:
 
-  def __init__(self, config: PIParams, setpoint):
+   def __init__(self, config: PIParams, setpoint):
     self.cfg = config
     self.setpoint = setpoint
     self.integral = 0.0
 
-  def reset(self, initial_integral= 0.0):
+   def reset(self, initial_integral= 0.0):
     self.integral = initial_integral
 
-  def compute(self, measurement, dt):
+   def compute(self, measurement, dt):
     """Calculates clamped coolant flow rate mc(t) using conditional anti-windup."""
     # Direct acting: e(t) = T - T_setpoint > 0 demands higher coolant flow
     error = measurement - self.setpoint

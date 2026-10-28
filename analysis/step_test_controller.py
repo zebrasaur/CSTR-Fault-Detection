@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from cstr import default_params, solve_steady_state, derivatives, solve_cstr_dynamic
+from cstr import default_params, solve_steady_state, derivatives
 from integrate import rk4_step
 
 p = default_params()       
@@ -12,22 +12,46 @@ p = default_params()
 h = 0.05                          #time step or dt in minutes 
 t_range = (0.0, 60.0)            #simulate time in minutes
 
-C_A, T, Tc, mc_ss, X_A = solve_steady_state(400.0,p)  #steady state values
+C_A_ss, Tss, Tc_ss, mc_ss, X_A_ss = solve_steady_state(400.0,p)  #steady state values
 
-y_initial = [C_A, T, Tc]         #initial state vector from steady state
-y_b = [C_A, T + 2.0, Tc]         #b case: Temperature changed
-y_c = [C_A, T -10.0, Tc]         #c case: Temperature changed
-y_d = [C_A, 475.0, Tc]           #d case: (designed start up values)
+y_initial = [C_A_ss, Tss, Tc_ss]         #initial state vector from steady state
+y_b = [C_A_ss, Tss + 2.0, Tc_ss]         #b case: Temperature changed
+y_c = [C_A_ss, Tss -10.0, Tc_ss]         #c case: Temperature changed
+y_d = [C_A_ss, 475.0, Tc_ss]           #d case: (designed start up values)
 
 
 #step test with mc
 mc_step = mc_ss*(1+0.03)
 
-#solve
-time, states = solve_cstr_dynamic(y_initial, t_range, h, mc_step)
+def solve_cstr_dynamic(y_initial, t_range, h, mc_step, p=p):
+    '''simulates the cstr without control for controller parameters'''
+    
+    t_start, t_end = t_range                            #time in minutes
+    t_points = np.arange(t_start, t_end+(h/2.0), h)     #time grid in minutes
+    num_steps = len(t_points)
+    y_curr = np.asarray(y_initial)
+    state_dim = y_curr.shape[0]
+    trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
+    trajectory[0,:] = y_curr
+
+    #Move time forward
+    for i in range(num_steps-1):
+        t_curr = t_points[i]
+        step_h = t_points[i + 1] - t_curr
+                
+        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_step)  #RK4 step
+
+        trajectory[i+1,:] = y_curr
+        
+    return t_points, trajectory
+
+
+#Solve
+time, states  = solve_cstr_dynamic(y_initial, t_range, h, mc_step)
 
 T_inital = states[0,1]
 T_final = states[-1,1]
+
 delta_T = T_final - T_inital
 T_drift = abs(states[-1,1] - states[-int(5/h) -1 ,1])
 dmc = mc_step - mc_ss
