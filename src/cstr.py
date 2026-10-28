@@ -93,7 +93,7 @@ def derivatives(y, t, p, mc):
     dTc_dt = (mc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
     return np.array([dC_A_dt, dT_dt, dTc_dt])
 
-def solve_cstr_dynamic(y_initial, t_range, h, p):
+def solve_cstr_dynamic(y_initial, t_range, h, p, controller):
     '''simulates the cstr using a 2D trajectory array'''
     
     t_start, t_end = t_range                            #time in minutes
@@ -110,7 +110,8 @@ def solve_cstr_dynamic(y_initial, t_range, h, p):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
         current_temp = y_curr[1]        
-        mc_val = controller.compute(measurement=current_temp, dt=step_h)
+        
+        mc_val = controller.compute(measurement=current_temp, dt=step_h) #controller
         mc_history[i] = mc_val
         
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_val)  #RK4 step
@@ -123,16 +124,12 @@ def solve_cstr_dynamic(y_initial, t_range, h, p):
 
 
 if __name__ == "__main__":
+    
     from controller import CSTRCoolantPI, PIParams
     p = default_params()
-    config = PIParams()
     T_target = float(input("Enter target reactor temperture (K): "))
-    p = default_params()
     C_A_ss, T_target, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_target,p)
-    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
-    
-    p = default_params()       
-
+    config = PIParams(u_bias=mc_ss, u_min=0.0, u_max=2*mc_ss)
     controller = CSTRCoolantPI(config, setpoint = T_target)
 
     y = [C_A_ss, T_target, Tc_ss]
@@ -143,10 +140,13 @@ if __name__ == "__main__":
     h = 0.05                         #time step or dt in minutes 
     t_range = (0.0, 60.0)            #simulate time in minutes
 
-    time, states, mc_history = solve_cstr_dynamic(y, t_range, h, p)
-    time, states_b, mc_history_b = solve_cstr_dynamic(y_b, t_range, h, p)
-    time, states_c, mc_history_c = solve_cstr_dynamic(y_c, t_range, h, p)
-    time, states_d, mc_history_d = solve_cstr_dynamic(y_d, t_range, h, p)
+
+    #Solve
+    Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
+    time, states, mc_history = solve_cstr_dynamic(y, t_range, h, p, controller)
+    time, states_b, mc_history_b = solve_cstr_dynamic(y_b, t_range, h, p, controller)
+    time, states_c, mc_history_c = solve_cstr_dynamic(y_c, t_range, h, p, controller)
+    time, states_d, mc_history_d = solve_cstr_dynamic(y_d, t_range, h, p, controller)
     
     min_per_col = states.min(axis=0)
     max_per_col = states.max(axis=0)

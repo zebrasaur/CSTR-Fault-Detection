@@ -6,25 +6,26 @@ import numpy as np
 @dataclass(frozen=True)
 
 class PIParams:
-    #Kc: float = 1.8619 # Proportional gain: kg/(minute*K)
-    #tau_I: float = 4.1228 # Integral time constant:  minute
-    u_bias: float = 109.0559  # Nominal steady-state flow rate/minute (m_c,ss)
-    u_min: float = 0.0  # Minimum actuator limit
-    u_max: float = 218.1118  # Maximum actuator limit/minute (e.g., 200% nominal)
-    tau_1: float = 4.1228
-    theta: float = 1.6136
-    Kp: float = -0.5489
+                                    #Kc: float = 1.8619 # Proportional gain: kg/(minute*K)
+                                    #tau_I: float = 4.1228 # Integral time constant:  minute
+    u_bias: float                   # Nominal steady-state flow rate/minute (m_c,ss)
+    u_max: float                    # Maximum actuator limit/minute (e.g., 200% nominal)
+    u_min: float                    # Minimum actuator limit
+    tau_1: float = 4.1228           # Min
+    theta: float = 1.6136           # Min, apparent dead time
+    K_process: float = -0.5489      # K per (kg/min)
+    tau_c_factor: float = 1.5       # SIMC design factor
   
     @property
-    def tau_c(self):           #define tau_c as between theta < tau_c < 2*theta
-      return (1.5)*self.theta
+    def tau_c(self):                #define tau_c as between theta < tau_c < 2*theta
+      return self.tau_c_factor*self.theta
 
     @property
     def Kc(self):
-        return self.tau_1 / ( (abs(self.Kp))*(self.tau_c + self.theta) )
+        return self.tau_1 / ( (abs(self.K_process))*(self.tau_c + self.theta) )
     @property
     def tau_I(self):
-      return min(self.tau_1, (4 * (self.tau_1 + self.theta)))
+      return min(self.tau_1, (4 * (self.tau_c + self.theta)))
 
 
 
