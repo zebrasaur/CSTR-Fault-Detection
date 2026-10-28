@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from integrate import rk4_step
+from controller import CSTRCoolantPI, PIParams
 
 @dataclass(frozen=True)
 class CSTRParams:
@@ -93,8 +94,8 @@ def derivatives(y, t, p, mc):
     dTc_dt = (mc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
     return np.array([dC_A_dt, dT_dt, dTc_dt])
 
-def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed):
-    '''simulates the cstr using a 2D trajectory array'''
+def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac):
+    '''simulates a cstr with coolant flowrate PI controller with noise '''
     
     t_start, t_end = t_range                            #time in minutes
     t_points = np.arange(t_start, t_end+(h/2.0), h)     #time grid in minutes
@@ -102,58 +103,70 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed):
     y_curr = np.asarray(y_initial)
     state_dim = y_curr.shape[0]
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
+    measured = np.empty((num_steps, state_dim), dtype=np.float64)
+
     mc_history = np.empty((num_steps), dtype=np.float64)
-    T_measured_history = np.empty((num_steps), dtype=np.float64)
-    T_measured_history[0]=y_initial[1]
+    T_meas_history = np.empty((num_steps), dtype=np.float64)
+    T_meas_history[0]=y_initial[1]
+    measurement = y_initial[1]
+    
     trajectory[0,:] = y_curr
-    rng = np.random.default_rng(seed)        
+    rng = np.random.default_rng(seed)
+    sigma = np.array([sigma_Ca, sigma_T, sigma_Tc]) 
+           
 
 
     #Move time forward
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
-        T_true = y_curr[1]
-        noise = rng.normal(loc=0.0, scale=0.3)
-        T_measured = T_true + noise
-        T_measured_history[i] = T_measured
         
-        measurement = T_measured
         mc_val = controller.compute(measurement, dt=step_h) #controller
         mc_history[i] = mc_val
         
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_val)  #RK4 step
 
         trajectory[i+1,:] = y_curr
-        mc_history[i+1] = mc_val
-        T_measured_history[i+1] = T_measured
-        
-    return t_points, trajectory, mc_history, T_measured_history
+        measured = trajectory + rng.normal(0.0,sigma, size=trajectory.shape)
+        measurement = measured[:,1]
 
-def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_params=None, fault=None):
+        mc_history[i+1] = mc_val
+        T_true = y_curr[1]
+        Tc_true = y_curr[2]
+        Ca_true = y_curr[0]
+        qc_cmd = mc_history
+        
+    T_meas_history =  measured[:,1] 
+    Tc_meas_history = measured[:,2]
+    Ca_meas_history = measured[:,0]
+    qc_meas_history = qc_cmd * (1.0 + rng.normal(0.0, flow_frac, size=mc_history.shape))
+        
+    return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history,
+    T_true, Tc_true, Ca_true, qc_cmd
+
+def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_params=None, 
+             fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.5, flow_frac = 0.03):
     '''simulating the reactor for 300 minutes '''
     p = default_params() if params is None else params
     C_A_ss, T_setpoint, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
     config = PIParams(u_bias=mc_ss, u_min=0.0, u_max=2*mc_ss)
     y0 = np.asarray([C_A_ss, T_setpoint, Tc_ss])
     t_range = (0.0, duration)                                   #simulation time in minutes
-
+    
     controller = CSTRCoolantPI(config, setpoint = T_setpoint)
-    tgrid, states, mc_history, T_measured_history = solve_cstr_dynamic(y, t_range, dt, p, controller, seed)
     
-    T = states[:,1]
-    Tc = states[:,2]
-    Ca = states[:,0]
+    (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, T_true, Tc_true,
+     Ca_true, qc_cmd) = solve_cstr_dynamic(
+        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac
+    )
     
     
-    
-    return tgrid, T, Tc, Ca, mc_history, T_measured_history
-
+    return ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
+             "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd })
     
 
 if __name__ == "__main__":
     
-    from controller import CSTRCoolantPI, PIParams
     p = default_params()
     T_target = float(input("Enter target reactor temperture (K): "))
     C_A_ss, T_target, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_target,p)
@@ -166,10 +179,19 @@ if __name__ == "__main__":
 
     h = 0.05                         #time step or dt in minutes 
     t_range = (0.0, 60.0)            #simulate time in minutes
-    seed=0                           
-    #integer
+    seed=0                           #integer
 
     #Solve
+    
+    
+    out = simulate()                #{"time":"T":"Tc":"Ca":"qc":"parameters_coupled"}
+
+    print(out["tgrid"][-1], out["T_measured"][-1], out["Tc_measured"][-1], out["Ca_measured"][-1], out["qc_measured"][-1],out["parameters_coupled"][-1])
+
+    
+    
+    
+    
     '''Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     
     controller = CSTRCoolantPI(config, setpoint = T_target)
@@ -184,7 +206,6 @@ if __name__ == "__main__":
     controller = CSTRCoolantPI(config, setpoint = T_target)
     time, states_d, mc_history_d = solve_cstr_dynamic(y_d, t_range, h, p, controller, seed)'''
     
-    time, T, Tc, Ca, qc, T_noise = simulate()
     
     
     
@@ -239,5 +260,4 @@ if __name__ == "__main__":
     print(f"Coolant Flow Rate: Min = {mc_history_d.min(axis=0):.5f} kg/min, Max = {mc_history_d.max(axis=0):.5f} kg/min")
     print(f"===================================================================")'''
 
-    print(f"Time, T, Tc, Ca, qc, T_noise  =   {time, T, Tc, Ca, qc, T_noise } kg/min")
 
