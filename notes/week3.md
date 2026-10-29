@@ -27,6 +27,14 @@ lots of bugs plotting the dynamic results. ran into a wierd bug where brackets i
 
 Designed high temperature reactor start into open_loop and plot outputted an oscillation at low time. first thought was turning poiits in the removal terms. Claude pointed out that those curves are steadystate and not dependent on time and suggested these oscillations might be numercial and ran tests halving the step size dt. at low dt<0.05 the system stablized (system stiffness is C_A eignvalue which is 1/tau) from a hot start. A step size should always be justified across the whole range of temperatures a system could operate in. 
 
+Realized tuned controller was only good for the range of temperatures around the target temperature. For
+T = 400K, the tunning paramters are only good for Temperatures 355K - 448K. Temperatures outside of that
+range require controller retune as well as a full stability check. Temperatures outside of those ranges also produce negative coolant flow rates which i flaged as an errror message output. 
+
+Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter. Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_simga = 0.03 (high accuracy). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02.
+The concentration analysis was done using "state estimators" with soft sensors using state parameters. For 
+our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca + noise, with simga_Ca = 0.03
+
 <!-- The most valuable section. Every bug you diagnose is a story you can
      tell in an interview. Root cause, not just symptom. -->
 
