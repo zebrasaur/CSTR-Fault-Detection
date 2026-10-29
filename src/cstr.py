@@ -107,42 +107,40 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigm
 
     mc_history = np.empty((num_steps), dtype=np.float64)
     T_meas_history = np.empty((num_steps), dtype=np.float64)
+    T_true_history = np.empty((num_steps), dtype=np.float64)
+
     T_meas_history[0]=y_initial[1]
-    measurement = y_initial[1]
+    T_true_history[0]=y_initial[1]
     
     trajectory[0,:] = y_curr
     rng = np.random.default_rng(seed)
-    sigma = np.array([sigma_Ca, sigma_T, sigma_Tc]) 
            
-
-
     #Move time forward
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
+        T_true_history[i] = y_curr[1]
+        T_meas = y_curr[1] + rng.normal((0.0, sigma_T))
+        T_meas= T_meas_history
         
-        mc_val = controller.compute(measurement, dt=step_h) #controller
+        mc_val = controller.compute(measurement=T_meas, dt=step_h) #controller
         mc_history[i] = mc_val
         
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_val)  #RK4 step
 
         trajectory[i+1,:] = y_curr
-        measured = trajectory + rng.normal(0.0,sigma, size=trajectory.shape)
-        measurement = measured[:,1]
-
         mc_history[i+1] = mc_val
-        T_true = y_curr[1]
-        Tc_true = y_curr[2]
-        Ca_true = y_curr[0]
-        qc_cmd = mc_history
+        T_meas_history[i+1,:] = T_meas
+        T_true_history[i+1,:] = y_curr[1]
+         
+    Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
+    Ca_meas_history = trajectory[:, 0] + rng.normal(0.0, sigma_Ca, size=num_steps)
+    qc_meas_history = mc_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
         
-    T_meas_history =  measured[:,1] 
-    Tc_meas_history = measured[:,2]
-    Ca_meas_history = measured[:,0]
-    qc_meas_history = qc_cmd * (1.0 + rng.normal(0.0, flow_frac, size=mc_history.shape))
         
-    return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history,
-    T_true, Tc_true, Ca_true, qc_cmd
+        
+        
+    return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, mc_history
 
 def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_params=None, 
              fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.5, flow_frac = 0.03):
@@ -155,11 +153,13 @@ def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_
     
     controller = CSTRCoolantPI(config, setpoint = T_setpoint)
     
-    (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, T_true, Tc_true,
-     Ca_true, qc_cmd) = solve_cstr_dynamic(
+    (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, trajectory, qc_cmd) = solve_cstr_dynamic(
         y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac
     )
-    
+    Ca_true = trajectory[:,0]
+    T_true = trajectory[:,1]
+    Tc_true = trajectory[:,2]
+    qc_cmd = mc_history
     
     return ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
              "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd })
