@@ -103,15 +103,9 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigm
     y_curr = np.asarray(y_initial)
     state_dim = y_curr.shape[0]
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
-    measured = np.empty((num_steps, state_dim), dtype=np.float64)
-
     mc_history = np.empty((num_steps), dtype=np.float64)
     T_meas_history = np.empty((num_steps), dtype=np.float64)
-    T_true_history = np.empty((num_steps), dtype=np.float64)
-
-    T_meas_history[0]=y_initial[1]
-    T_true_history[0]=y_initial[1]
-    
+    T_meas_history[0]=y_initial[1] 
     trajectory[0,:] = y_curr
     rng = np.random.default_rng(seed)
            
@@ -119,9 +113,8 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigm
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
-        T_true_history[i] = y_curr[1]
-        T_meas = y_curr[1] + rng.normal((0.0, sigma_T))
-        T_meas= T_meas_history
+        T_meas = y_curr[1] + rng.normal(0.0, sigma_T)
+        T_meas_history[i] = T_meas
         
         mc_val = controller.compute(measurement=T_meas, dt=step_h) #controller
         mc_history[i] = mc_val
@@ -129,10 +122,10 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigm
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_val)  #RK4 step
 
         trajectory[i+1,:] = y_curr
-        mc_history[i+1] = mc_val
-        T_meas_history[i+1,:] = T_meas
-        T_true_history[i+1,:] = y_curr[1]
-         
+        
+    mc_history[-1] = mc_history[-2]                                   #last slot filled
+    T_meas_history[-1] = trajectory[-1,1] + rng.normal(0.0, sigma_T)  #last slot filled
+          
     Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
     Ca_meas_history = trajectory[:, 0] + rng.normal(0.0, sigma_Ca, size=num_steps)
     qc_meas_history = mc_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
@@ -142,11 +135,15 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigm
         
     return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, mc_history
 
-def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_params=None, 
+def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_params=None, 
              fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.5, flow_frac = 0.03):
     '''simulating the reactor for 300 minutes '''
     p = default_params() if params is None else params
     C_A_ss, T_setpoint, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
+    
+    if mc_ss <= 0 or Tc_ss >= T_setpoint:
+        raise ValueError(f"Setpoint {T_setpoint} K is not achievable with cooling (needs coolant flow {mc_ss:.1f} kg/min).")
+    
     config = PIParams(u_bias=mc_ss, u_min=0.0, u_max=2*mc_ss)
     y0 = np.asarray([C_A_ss, T_setpoint, Tc_ss])
     t_range = (0.0, duration)                                   #simulation time in minutes
@@ -159,7 +156,7 @@ def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_
     Ca_true = trajectory[:,0]
     T_true = trajectory[:,1]
     Tc_true = trajectory[:,2]
-    qc_cmd = mc_history
+    
     
     return ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
              "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd })
@@ -168,29 +165,50 @@ def simulate(duration=300.0, seed=0, dt=0.05, T_setpoint=400.0, params=None, pi_
 if __name__ == "__main__":
     
     p = default_params()
-    T_target = float(input("Enter target reactor temperture (K): "))
-    C_A_ss, T_target, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_target,p)
-    config = PIParams(u_bias=mc_ss, u_min=0.0, u_max=2*mc_ss)
+    setpoint = float(input("Enter target reactor temperture (K): "))
+    duration = float(input("Enter simulation time (min)):  "))
 
-    y = [C_A_ss, T_target, Tc_ss]
-    y_b = [C_A_ss, T_target + 2.0, Tc_ss]         #b case: Temperature changed
-    y_c = [C_A_ss, T_target -10.0, Tc_ss]         #c case: Temperature changed
-    y_d = [C_A_ss, 475.0, Tc_ss]           #d case: (designed start up values)
+    #C_A_ss, T_target, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_target,p)
 
-    h = 0.05                         #time step or dt in minutes 
-    t_range = (0.0, 60.0)            #simulate time in minutes
-    seed=0                           #integer
+    #y = [C_A_ss, T_target, Tc_ss]
+    #y_b = [C_A_ss, T_target + 2.0, Tc_ss]         #b case: Temperature changed
+    #y_c = [C_A_ss, T_target -10.0, Tc_ss]         #c case: Temperature changed
+    #y_d = [C_A_ss, 475.0, Tc_ss]                  #d case: (designed start up values)
+
+    #h = 0.05                                      #time step or dt in minutes 
+    #t_range = (0.0, 60.0)                         #simulate time in minutes
+    #seed=0                                        #integer
 
     #Solve
-    
-    
-    out = simulate()                #{"time":"T":"Tc":"Ca":"qc":"parameters_coupled"}
+    out = simulate(duration, setpoint)                              #{"time":"T":"Tc":"Ca":"qc":"True params..."}
 
-    print(out["tgrid"][-1], out["T_measured"][-1], out["Tc_measured"][-1], out["Ca_measured"][-1], out["qc_measured"][-1],out["parameters_coupled"][-1])
 
+    print(f"Final time:                                      {out["time"][-1]:.5f} min")
+    print(f"Final Measured Reactor Temperature:              {out["T"][-1]:.5f} K")
+    print(f"Final Measured Coolant Temperature:              {out["Tc"][-1]:.5f} K")
+    print(f"Final Measured Effluent Concentration:           {out["Ca"][-1]:.5f} mol/m^3")
+    print(f"Final Measured Coolant flow rate:                {out["qc"][-1]:.5f} kg/min")
+    print(f"Final Designed Reactor Temperature:              {out["T_true"][-1]:.5f} K")
+    print(f"Final Designed Coolant Temperature:              {out["Tc_true"][-1]:.5f} K")
+    print(f"Final Designed Effluent Concentration:           {out["Ca_true"][-1]:.5f} mol/m^3")
+    print(f"Final Commanded Coolant flow rate:               {out["qc_cmd"][-1]:.5f} kg/min")
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    #Old calculations and prints here
     
     '''Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     
@@ -206,17 +224,10 @@ if __name__ == "__main__":
     controller = CSTRCoolantPI(config, setpoint = T_target)
     time, states_d, mc_history_d = solve_cstr_dynamic(y_d, t_range, h, p, controller, seed)'''
     
-    
-    
-    
-    
-    
     '''min_per_col = states.min(axis=0)
     max_per_col = states.max(axis=0)
     min_coolant_b = mc_history_b.min(axis=0)
-    max_coolant_b = mc_history_b.max(axis=0)'''
-
-    
+    max_coolant_b = mc_history_b.max(axis=0)'''    
     
     '''print(f"--- Steady-State Operating Point Verification at T = {T_target:.2f} K ---")
     print(f"Exit stream concentration ss:  {C_A_ss:.2f} mol/m^3")
