@@ -25,7 +25,8 @@ class PIParams:
     def tau_I(self):
       return min(self.tau_1, (4 * (self.tau_c + self.theta)))
 
-
+def pi_params():
+  return PIParams()
 
 class CSTRCoolantPI:
 

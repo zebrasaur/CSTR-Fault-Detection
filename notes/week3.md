@@ -3,7 +3,8 @@
 Started: October 14th 2026
 
 ## What I built
-non-adiabatic, non-isothermal CSTR with cooling jacket with internal coils using cooling water. Coolant mass flow is manipulated to keep reactor operating temperature at T = 400k. Will build a PI controller.
+non-adiabatic, non-isothermal CSTR with cooling jacket with internal coils using cooling water. Coolant mass flow rate is manipulated to keep reactor operating temperature at the steady state operating Temperture. Built a PI controller, tunning based on a first order plus dead time model, acting on the coolant mass flow rate and tuned using step-testing runs on varying coolant flow rates at Temperature T = 400K. Added sensor noise, T, Tc, Ca, qc, to the controller. Added fault injection to the reactor.
+
 ## What broke, and what fixed it
 UA was set to 1000 W/k which didnt make sense it was impossible. Changed it to 10,000 W/K. Lots of problems with making sure units were consistent throughout. Had problems with kWatts and Watts. 
 
@@ -31,24 +32,22 @@ Realized tuned controller was only good for the range of temperatures around the
 T = 400K, the tunning paramters are only good for Temperatures 355K - 448K. Temperatures outside of that
 range require controller retune as well as a full stability check. Temperatures outside of those ranges also produce negative coolant flow rates which i flaged as an errror message output. 
 
-Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter. Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_simga = 0.03 (high accuracy). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02.
-The concentration analysis was done using "state estimators" with soft sensors using state parameters. For 
-our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca + noise, with simga_Ca = 0.03
+Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter.
 
 <!-- The most valuable section. Every bug you diagnose is a story you can
      tell in an interview. Root cause, not just symptom. -->
 
 ## What I did not understand at first
-how distubrances and faults are classified. slope stability criterion. Van Heerden Thermal Multiplicity Diagram. sigmoidal functions. Bifurcation & Hysteresis Loop Diagram. control loop and coolant residence time calculations
+how distubrances and faults are classified. slope stability criterion. Van Heerden Thermal Multiplicity Diagram. sigmoidal functions. control loop and coolant residence time calculations
+
 My steady-state stability analysis said 17 K of margin to reactor death. Simulation showed dips larger than 5.2 K  would extinguish the reactor with the valve frozen, because the diagram assumes concentration has already settled at the new temperature while my simulation used the concentration value at T = 400k, the steady state value, this produced a generation term that was 25% below the van heerden diagram. As T falls, generation falls and CA can't refill fast enough to recover.
 
 Test results
 Starting state at T = 390 K, valve frozen	    |      Final T
 ==============================================================================
 C_A = 530.75 (the 400 K value), original case (c)|    302.45 K, extinguished
-C_A = 709.09 (settled at 390 K), Tⱼ at the 400 K |    400.00 K, recovers
-C_A = 709.09, Tⱼ = 348.16 (also settled at 390 K |    400.00 K, recovers
-Case (d) with C_A = 709.09 instead of 600	    |    400.00 K, recovers, even with the 345 K jacket
+C_A = 709.09 (settled at 390 K), Tc at the 400 K |    400.00 K, recovers
+C_A = 709.09, Tc = 348.16  also settled at 390 K |    400.00 K, recovers
 
 reactant deficit, not the temperature caused the extinction is prior cases
 
@@ -61,11 +60,27 @@ The deeper finding: reactor operating point sits near the “nose”. the heat c
 
 Feed-temperature drop that eliminates the ignited steady state, valve frozen	1.04 K
 
-with coolant flow at zero, removal is only the feed flow term, so it can absorb feed drops of up to about 23 K (from 2,462 kW = 20 kW/K × (400 − T0), T0 ≥ 276.9 K). So 1 K open-loop reactor becomes about 23 K closed-loop reactor. running at 400 K with these parameters leaves almost no open-loop margin and the controller must handle all pertubations to keep stability
+with coolant flow at zero, removal is only the feed flow term, so it can absorb feed drops of up to about 23 K (from 2,462 kW = 20 kW/K × (400 − T0), T0 ≥ 276.9 K). So 1 K open-loop reactor becomes about 23 K closed-loop reactor. running at 400 K with these parameters leaves almost no open-loop margin and the controller must handle all pertubations to keep stability. 
+
+The highest temperature an uncooled CSTR can sustain is bounded by T0 + deltaT_ad, because generation 
+saturates at full conversion while the feed’s sensible duty keeps rising. With T0 = 300, deltaT_ad = 156.25K, Tmax = 456.25, the conversion at this temp is X = 0.95 using our residence time vo/V, the actual 
+Temperature is lower, 448 K in my case.
 
 
 ## Decisions I made, and why
-derive various cstr analytical soultions first. Used 400K because thats what the plan called for and gemni gave me the parapmeters for testing the rest of the CSTR (checked if these made sense using cooling water as coolant).did all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write functions to calculate steady-state parameters and heat terms and plot them using a 500 element temperature array. Check plots for steady state and sanity check.converted everything to /minute instead of /second to give the tau (space-time) check (in check.py) more time for faults and fowling. built removal functions for keeping both Tc and mc constant.rewrote everything into cstr.py to conform with check.py. looked into different cooling jacket geometries (using steady state mc) including using annular jacket volume with a inner jacket wall set to 0.050m (high space-time), using coils directly inside the reactor (lowest spacetime), and using half-pipe flow weilded directly to reactor surface and bottom head (middle spacetime). decided on the half-pipe flow because its a resonable design decision with a spacetime of 1.1 minutes. the variable coolant flow rate can be passed directly into the deriviatives with the required coolant volume in the half pipes. the manipulated variable is coolant flow rate and the hold up is the mass of coolant in the half pipes
+derive various cstr analytical soultions first. Used 400K because thats what the plan called for and gemni gave me the parapmeters for testing the rest of the CSTR (checked if these made sense using cooling water as coolant).did all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write functions to calculate steady-state parameters and heat terms and plot them using a 500 element temperature array. 
+
+Check plots for steady state and sanity check.converted everything to /minute instead of /second to give the tau (space-time) check (in check.py) more time for faults and fowling. built removal functions for keeping both Tc and mc constant.rewrote everything into cstr.py to conform with check.py. looked into different cooling jacket geometries (using steady state mc) including using annular jacket volume with a inner jacket wall set to 0.050m (high space-time), using coils directly inside the reactor (lowest spacetime), and using half-pipe flow weilded directly to reactor surface and bottom head (middle spacetime). 
+
+Decided on the half-pipe flow because its a resonable design decision with a spacetime of 1.1 minutes. the variable coolant flow rate can be passed directly into the deriviatives with the required coolant volume in the half pipes. the manipulated variable is coolant flow rate and the hold up is the mass of coolant in the half pipes
+
+Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_simga = 0.03 (high accuracy). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02. The concentration analysis was done using "state estimators" with soft sensors using state parameters. For our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca + noise, with simga_Ca = 0.03.
+
+Fluid feed properties are water like with rho 1000 kg/m^3 and Cp = 4000 j/kg*K. to avoid a gas phase, the
+reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and venting not modelled. liquid is assumed throughout including exit stream (effluent throttling ) via control valve (not modelled). Constant volume of liquid held by nitrogen padding of the reactor vapor headspace with back pressure regulation and effluent throttling. 
+
+
+
 <!-- Every arbitrary-looking choice needs its reason recorded NOW, while
      you still have it. "Why 400 K?" is only answerable in week 6 if you
      wrote it down in week 3. -->

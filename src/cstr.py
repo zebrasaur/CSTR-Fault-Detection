@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from integrate import rk4_step
 from controller import CSTRCoolantPI, PIParams
+from faults import FaultType, FaultEvent, apply_sensor_faults, apply_actuator_faults, apply_process_faults
 
 @dataclass(frozen=True)
 class CSTRParams:
@@ -42,6 +43,7 @@ class CSTRParams:
 def default_params():
     return CSTRParams()
 
+p = default_params()
 
 #Arrhenius rate constant k(T), 1/min
 def rate_constant(T, p):
@@ -67,21 +69,21 @@ def solve_steady_state(T_target, params=None):
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     Tc_target = T_target - (Q_jacket/p.UA) #coolant temperature at jacket (K)
-    mc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
-    return C_A, T_target, Tc_target, mc_target, conversion
+    qc_target = Q_jacket/(p.Cp_coolant*(Tc_target - p.Tc_in)) #Coolant massflow rate (kg/min) T = target 
+    return C_A, T_target, Tc_target, qc_target, conversion
 
 def stability_margin(T_target, params=None):
     #Return dQgen_dT, dQremoved_dT per unit reactor volume (J/min*K*m^3)
     
     p = default_params() if params is None else params
-    C_A, T, Tc_target, mc_target, X_A = solve_steady_state(T_target, p)
+    C_A, T, Tc_target, qc_target, X_A = solve_steady_state(T_target, p)
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     dQgen_dT = (-p.delta_H_rxn)*p.F_A0*((X_A*(1-X_A))*(p.Ea_over_R/(T_target)**2))
-    UAeff = (p.UA*mc_target*p.Cp_coolant)/(mc_target*p.Cp_coolant + p.UA)
+    UAeff = (p.UA*qc_target*p.Cp_coolant)/(qc_target*p.Cp_coolant + p.UA)
     dQremoved_dT = p.rho*p.Cp_feed*p.v0 + UAeff
     return dQgen_dT / p.V, dQremoved_dT / p.V
 
-def derivatives(y, t, p, mc):
+def derivatives(y, t, p, qc):
     #Time derivatives [dCa/dt, dT/dt, dTc/dt], per minute.
     #y = [Ca (mol/m^3), T (K), Tc (K)]; qc = coolant flow (kg/min)
     C_A, T, Tc = y[0], y[1], y[2]
@@ -91,19 +93,23 @@ def derivatives(y, t, p, mc):
     gamma_reactor = (p.UA)/(p.V*p.rho*p.Cp_feed)
     dT_dt = ((p.T0 - T)/p.tau) + (beta_reactor*k*C_A) - (gamma_reactor*(T- Tc))
     gamma_coolant = (p.UA)/(p.Vc*p.rho_c*p.Cp_coolant)
-    dTc_dt = (mc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
+    dTc_dt = (qc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
     return np.array([dC_A_dt, dT_dt, dTc_dt])
 
-def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac):
+def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
+                       sigma_T, sigma_Tc, sigma_Ca, flow_frac,
+                       faults: list[FaultEvent] | None = None):
     '''simulates a cstr with coolant flowrate PI controller with noise '''
-    
+    if faults is None:
+        faults = []
     t_start, t_end = t_range                            #time in minutes
     t_points = np.arange(t_start, t_end+(h/2.0), h)     #time grid in minutes
     num_steps = len(t_points)
-    y_curr = np.asarray(y_initial)
+    y_curr = np.asarray(y_initial, dtype= np.float64)
     state_dim = y_curr.shape[0]
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
-    mc_history = np.empty((num_steps), dtype=np.float64)
+    qc_cmd_history = np.empty((num_steps), dtype=np.float64)
+    qc_actual_history = np.empty((num_steps), dtype=np.float64) 
     T_meas_history = np.empty((num_steps), dtype=np.float64)
     T_meas_history[0]=y_initial[1] 
     trajectory[0,:] = y_curr
@@ -113,44 +119,50 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed, sigma_T, sigm
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
-        T_meas = y_curr[1] + rng.normal(0.0, sigma_T)
+        T_noisy = y_curr[1] + rng.normal(0.0, sigma_T)          #Temp sensor noise
+        T_meas = apply_sensor_faults(T_noisy, t_curr, faults)   #Temp sensor faults
         T_meas_history[i] = T_meas
         
-        mc_val = controller.compute(measurement=T_meas, dt=step_h) #controller
-        mc_history[i] = mc_val
+        qc_cmd = controller.compute(measurement=T_meas, dt=step_h) #controller
+        qc_cmd_history[i] = qc_cmd
+        qc_actual = apply_actuator_faults(qc_cmd, t_curr, faults)  #valve faults
+        qc_actual_history[i] = qc_actual                           #actual coolant flow rate
         
-        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p, mc_val)  #RK4 step
+        p_current = apply_process_faults(p, t_curr, faults)
+        
+        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_current, qc_actual)  #RK4 step
 
         trajectory[i+1,:] = y_curr
         
-    mc_history[-1] = mc_history[-2]                                   #last slot filled
-    T_meas_history[-1] = trajectory[-1,1] + rng.normal(0.0, sigma_T)  #last slot filled
+    qc_cmd_history[-1] = qc_cmd_history[-2]                          #last slot filled
+    qc_actual_history[-1] = qc_actual_history[-2]                    #last slot filled
+    T_meas_history[-1] = trajectory[-1,1] + rng.normal(0.0, sigma_T) #last slot filled
           
     Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
     Ca_meas_history = trajectory[:, 0] + rng.normal(0.0, sigma_Ca, size=num_steps)
-    qc_meas_history = mc_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
+    qc_meas_history = qc_actual_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
         
         
         
         
-    return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, mc_history
+    return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, qc_cmd_history
 
 def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_params=None, 
              fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02):
     '''simulating the reactor for 300 minutes '''
     p = default_params() if params is None else params
-    C_A_ss, T_setpoint, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
+    C_A_ss, T_setpoint, Tc_ss, qc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
     
-    if mc_ss <= 0 or Tc_ss >= T_setpoint:
-        raise ValueError(f"Setpoint {T_setpoint} K is not achievable with cooling (needs coolant flow {mc_ss:.1f} kg/min).")
+    if qc_ss <= 0 or Tc_ss >= T_setpoint:
+        raise ValueError(f"Setpoint {T_setpoint} K is not achievable with cooling (needs coolant flow {qc_ss:.1f} kg/min).")
     
-    config = PIParams(u_bias=mc_ss, u_min=0.0, u_max=2*mc_ss)
+    config = PIParams(u_bias=qc_ss, u_min=0.0, u_max=2*qc_ss)
     y0 = np.asarray([C_A_ss, T_setpoint, Tc_ss])
     t_range = (0.0, duration)                                   #simulation time in minutes
     
     controller = CSTRCoolantPI(config, setpoint = T_setpoint)
     
-    (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, trajectory, qc_cmd) = solve_cstr_dynamic(
+    (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, trajectory, qc_cmd)=solve_cstr_dynamic(
         y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac
     )
     Ca_true = trajectory[:,0]
@@ -161,114 +173,5 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_
     return ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
              "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd })
     
-
-if __name__ == "__main__":
     
-    p = default_params()
-    setpoint = float(input("Enter target reactor temperture (K): "))
-    duration = float(input("Enter simulation time (min)):  "))
-
-    #C_A_ss, T_target, Tc_ss, mc_ss, X_A_ss = solve_steady_state(T_target,p)
-
-    #y = [C_A_ss, T_target, Tc_ss]
-    #y_b = [C_A_ss, T_target + 2.0, Tc_ss]         #b case: Temperature changed
-    #y_c = [C_A_ss, T_target -10.0, Tc_ss]         #c case: Temperature changed
-    #y_d = [C_A_ss, 475.0, Tc_ss]                  #d case: (designed start up values)
-
-    #h = 0.05                                      #time step or dt in minutes 
-    #t_range = (0.0, 60.0)                         #simulate time in minutes
-    #seed=0                                        #integer
-
-    #Solve
-    out = simulate(duration, setpoint)                              #{"time":"T":"Tc":"Ca":"qc":"True params..."}
-
-
-    print(f"Final time:                                      {out["time"][-1]:.5f} min")
-    print(f"Final Measured Reactor Temperature:              {out["T"][-1]:.5f} K")
-    print(f"Final Measured Coolant Temperature:              {out["Tc"][-1]:.5f} K")
-    print(f"Final Measured Effluent Concentration:           {out["Ca"][-1]:.5f} mol/m^3")
-    print(f"Final Measured Coolant flow rate:                {out["qc"][-1]:.5f} kg/min")
-    print(f"Final Designed Reactor Temperature:              {out["T_true"][-1]:.5f} K")
-    print(f"Final Designed Coolant Temperature:              {out["Tc_true"][-1]:.5f} K")
-    print(f"Final Designed Effluent Concentration:           {out["Ca_true"][-1]:.5f} mol/m^3")
-    print(f"Final Commanded Coolant flow rate:               {out["qc_cmd"][-1]:.5f} kg/min")
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    #Old calculations and prints here
-    
-    '''Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
-    
-    controller = CSTRCoolantPI(config, setpoint = T_target)
-    time, states, mc_history = solve_cstr_dynamic(y, t_range, h, p, controller,seed)
-    
-    controller = CSTRCoolantPI(config, setpoint = T_target)
-    time, states_b, mc_history_b = solve_cstr_dynamic(y_b, t_range, h, p, controller,seed)
-    
-    controller = CSTRCoolantPI(config, setpoint = T_target)
-    time, states_c, mc_history_c = solve_cstr_dynamic(y_c, t_range, h, p, controller, seed)
-    
-    controller = CSTRCoolantPI(config, setpoint = T_target)
-    time, states_d, mc_history_d = solve_cstr_dynamic(y_d, t_range, h, p, controller, seed)'''
-    
-    '''min_per_col = states.min(axis=0)
-    max_per_col = states.max(axis=0)
-    min_coolant_b = mc_history_b.min(axis=0)
-    max_coolant_b = mc_history_b.max(axis=0)'''    
-    
-    '''print(f"--- Steady-State Operating Point Verification at T = {T_target:.2f} K ---")
-    print(f"Exit stream concentration ss:  {C_A_ss:.2f} mol/m^3")
-    print(f"Conversion ss:                 {X_A_ss * 100:.2f} %")
-    print(f"Heat Generated ss:             {Q_gen:.2f} J/min")
-    print(f"Inlet Stream Load ss:          {Q_inlet:.2f} J/min")
-    print(f"Required Jacket Duty ss:       {Q_jacket:.2f} J/min")
-    print(f"Required Coolant Temp ss:      {Tc_ss:.2f} K ({Tc_ss - 273.15:.2f} °C)")
-    print(f"Coolant Mass Flow Rate ss:     {mc_ss:.3f} kg/min\n")
-    print(f"===================================================================")
-    
-    print(f"Final Coolant flow rate base T = 400:            {mc_history[-1]} kg/min")
-    print(f"Final Concentration base T = 400:               {states[-1, 0]:.5f} mol/m^3")
-    print(f"Final Reactor Temp base T = 400:                {states[-1, 1]:.5f} K")
-    print(f"Final Jacket Temp base T = 400:               {states[-1, 2]:.5f} K")
-    print(f"Temperature: Min = {states[:,1].min():.5f} K, Max = {states[:,1].max():.5f} K")
-    print(f"Coolant Flow Rate: Min = {mc_history.min(axis=0):.5f} kg/min, Max = {mc_history.max(axis=0):.5f} kg/min")
-    
-    print(f"===================================================================")
-    print(f"Final Coolant flow rate B case T+2K:     {mc_history_b[-1]} kg/min")
-    print(f"Final Concentration B case T+2K:         {states_b[-1, 0]:.5f} mol/m^3")
-    print(f"Final Reactor Temp B case T+2K:          {states_b[-1, 1]:.5f} K")
-    print(f"Final Jacket Temp B case T+2K:           {states_b[-1, 2]:.5f} K")
-    print(f"Temperature: Min = {states_b[:,1].min():.5f} K, Max = {states_b[:,1].max():.5f} K")
-    print(f"Coolant Flow Rate: Min = {mc_history_b.min(axis=0):.5f} kg/min, Max = {mc_history_b.max(axis=0):.5f} kg/min")
-    
-    print(f"===================================================================")
-    print(f"Final Coolant flow rate C case T-10K:     {mc_history_c[-1]} kg/min")
-    print(f"Final Concentration C case T-10K:         {states_c[-1, 0]:.5f} mol/m^3")
-    print(f"Final Reactor Temp C case T-10K:          {states_c[-1, 1]:.5f} K")
-    print(f"Final Jacket Temp C case T-10K:           {states_c[-1, 2]:.5f} K")
-    print(f"Temperature: Min = {states_c[:,1].min():.5f} K, Max = {states_c[:,1].max():.5f} K")
-    print(f"Coolant Flow Rate: Min = {mc_history_c.min(axis=0):.5f} kg/min, Max = {mc_history_c.max(axis=0):.5f} kg/min")
-    
-    print(f"===================================================================")
-    print(f"Final Coolant flow rate D case T=475K:     {mc_history_d[-1]} kg/min")
-    print(f"Final Concentration D case T=475K:         {states_d[-1, 0]:.5f} mol/m^3")
-    print(f"Final Reactor Temp D case T=475K:          {states_d[-1, 1]:.5f} K")
-    print(f"Final Jacket Temp D case T=475K:           {states_d[-1, 2]:.5f} K")
-    print(f"Temperature: Min = {states_d[:,1].min():.5f} K, Max = {states_d[:,1].max():.5f} K")
-    print(f"Coolant Flow Rate: Min = {mc_history_d.min(axis=0):.5f} kg/min, Max = {mc_history_d.max(axis=0):.5f} kg/min")
-    print(f"===================================================================")'''
-
 
