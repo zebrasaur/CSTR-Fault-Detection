@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from integrate import rk4_step
-from controller import CSTRCoolantPI, PIParams
 from faults import FaultType, FaultEvent, apply_sensor_faults, apply_actuator_faults, apply_process_faults
 
 @dataclass(frozen=True)
@@ -43,7 +42,6 @@ class CSTRParams:
 def default_params():
     return CSTRParams()
 
-p = default_params()
 
 #Arrhenius rate constant k(T), 1/min
 def rate_constant(T, p):
@@ -136,7 +134,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         
     qc_cmd_history[-1] = qc_cmd_history[-2]                          #last slot filled
     qc_actual_history[-1] = qc_actual_history[-2]                    #last slot filled
-    T_meas_history[-1] = trajectory[-1,1] + rng.normal(0.0, sigma_T) #last slot filled
+    T_meas_history[-1] = trajectory[-1,1]+rng.normal(0.0, sigma_T)+apply_sensor_faults(trajectory[-1,1], t_curr, faults) #last slot filled
           
     Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
     Ca_meas_history = trajectory[:, 0] + rng.normal(0.0, sigma_Ca, size=num_steps)

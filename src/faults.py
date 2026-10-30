@@ -12,7 +12,7 @@ class FaultType(Enum):
     SENSOR_BIAS = "sensor_bias"             #Constant offset added to T_meas
     SENSOR_DRIFT = "sensor_drift"           #Linear drift added to T_meas over time
     
-@dataclass
+@dataclass(frozen=True)
 class FaultEvent:
     fault_type: FaultType
     t_start: float                          #when faults start (min)
@@ -40,11 +40,11 @@ def apply_sensor_faults(T_noisy, t, faults: list[FaultEvent]):
     T_meas = T_noisy
     for f in faults:
       if f.fault_type == FaultType.SENSOR_BIAS:
-            T_meas += f.get_severity_Factor(t)      #severity of + factor (K)
+            T_meas += f.get_severity_factor(t)      #severity of + factor (K)
             
       elif f.fault_type == FaultType.SENSOR_DRIFT:
           if f.t_start <= t < f.t_end:
-              T_meas += f.severity*(t - f.t_start)  #severity of + ramping factor (K)
+              T_meas += f.severity*(t - f.t_start)  #severity of + factor (K)
               
     return T_meas
 
@@ -52,7 +52,7 @@ def apply_actuator_faults(qc_cmd, t, faults: list[FaultEvent]):
     """Apply actuator faults to the coolant-flow command."""
     qc_actual = qc_cmd
     for f in faults:
-      if f.fault_type == FaultType.PUMP_TRIP:        #severity of 1.0 = 1000% loss
+      if f.fault_type == FaultType.PUMP_TRIP:        #severity of 1.0 = 100% loss(kg/min)
           loss_fraction = f.get_severity_factor(t)   #severity of 0.6 = 60% loss
           qc_actual *= 1.0 - loss_fraction
           
@@ -69,11 +69,11 @@ def apply_process_faults(p, t, faults: list[FaultEvent]):
     for f in faults:
         factor = f.get_severity_factor(t)
         if f.fault_type == FaultType.FOULING:
-            p_active.UA = p.UA*(1.0 - factor)       #severity of 0.4 = 40% reduction in conductance
+            p_active.UA = replace.p.UA*(1.0 - factor)       #severity of 0.4 = 40% reduction in conductance
         elif f.fault_type == FaultType.FEED_TEMP_SURGE:
-            p_active.T0 = p.T0 + factor             #severity of + factor (K)
+            p_active.T0 = replace.p.T0 + factor             #severity of + factor (K)
         elif f.fault_type == FaultType.FEED_CONC_SURGE:
-            p.p_active.C_A0 = p.C_A0 + factor       #severity of + factor (mol/m^3)
+            p.p_active.C_A0 = replace.p.C_A0 + factor      #severity of + factor (mol/m^3)
     
     return p_active
 
