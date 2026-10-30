@@ -64,16 +64,15 @@ def apply_actuator_faults(qc_cmd, t, faults: list[FaultEvent]):
 
 def apply_process_faults(p, t, faults: list[FaultEvent]):
     """Apply process faults to plant parameters"""
-    p_active = copy(p)
-    
+    p_active = p
     for f in faults:
         factor = f.get_severity_factor(t)
         if f.fault_type == FaultType.FOULING:
-            p_active.UA = replace.p.UA*(1.0 - factor)       #severity of 0.4 = 40% reduction in conductance
+            p_active = replace(p_active, UA=(UA*(1.0 - factor)))       #severity of 0.4 = 40% reduction in conductance
         elif f.fault_type == FaultType.FEED_TEMP_SURGE:
-            p_active.T0 = replace.p.T0 + factor             #severity of + factor (K)
+            p_active = replace(p_active, T0 = (T0 + factor))             #severity of + factor (K)
         elif f.fault_type == FaultType.FEED_CONC_SURGE:
-            p.p_active.C_A0 = replace.p.C_A0 + factor      #severity of + factor (mol/m^3)
+            p_active = replace(p_active, (C_A0 + factor))      #severity of + factor (mol/m^3)
     
     return p_active
 

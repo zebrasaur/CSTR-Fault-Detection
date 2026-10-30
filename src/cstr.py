@@ -134,8 +134,9 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         trajectory[i+1,:] = y_curr
         
     qc_cmd_history[-1] = qc_cmd_history[-2]                          #last slot filled
-    qc_actual_history[-1] = qc_actual_history[-2]                    #last slot filled
-    T_meas_history[-1] = trajectory[-1,1]+rng.normal(0.0, sigma_T)+apply_sensor_faults(trajectory[-1,1], t_curr, faults) #last slot filled
+    qc_actual_history[-1] = qc_actual_history[-2]                   #last slot filled
+    T_noisy = trajectory[-1,1] + rng.normal(0.0, sigma_T)
+    T_meas_history[-1] = apply_sensor_faults(T_noisy, t_points[-1], faults) #last slot filled
           
     Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
     Ca_meas_history = trajectory[:, 0] + rng.normal(0.0, sigma_Ca, size=num_steps)

@@ -34,6 +34,17 @@ range require controller retune as well as a full stability check. Temperatures 
 
 Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter.
 
+had to fill the last slot after the rfk4 loop. usually [-1] = [-2] but for 
+temperature, i had to add back the noise and any faults on the last slot as the last measured T = the last True T. tried to do it togther in one line which lead to to 
+double additions of T. seperated the noise/faults into seperate lines.
+
+lots of problems trying to implement a user input prompts. had to build float, integer, string, and a dataclass ask prompt. then learned to pass using a dict and 
+printing the dict. learned how to pass the dict values into individual functions across three different files. lots of import bugs and problems. dataclasses are hard
+to learn to properly pass around.
+
+problems learning how to define and implement faults into the system without manually
+changing numbers every run. built dedicated functions for each type of fault plane: Actuator plane, process/plant plane, sensor plane. each type of fault occurs in its own plane and multiple faults are branched down. had to make sure any replace values
+for a dataclass are stored corretly as to not rewrite the dataclass when a value is updated within it in  the next branch down
 <!-- The most valuable section. Every bug you diagnose is a story you can
      tell in an interview. Root cause, not just symptom. -->
 
