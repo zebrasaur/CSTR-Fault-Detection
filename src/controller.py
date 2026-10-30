@@ -10,8 +10,8 @@ class PIParams:
     u_min:  float                    # Minimum actuator limit
     tau_1:  float = 4.1228           # Min
     theta:  float = 1.6136           # Min, apparent dead time
-    K_process: float = -0.5489      # K per (kg/min)
-    tau_c_factor: float = 1.5       # SIMC design factor between theta < tau_c < 2*theta
+    K_process: float = -0.5489       # process gainK per (kg/min)
+    tau_c_factor: float = 1.5        # SIMC design factor between theta < tau_c < 2*theta
   
     @property
     def tau_c(self):                 
@@ -19,7 +19,7 @@ class PIParams:
 
     @property
     def Kc(self):
-      return self.tau_1 / ((abs(self.K_process)) * (self.tau_c + self.theta))
+      return self.tau_1 / ((abs(self.K_process)) * (self.tau_c + self.theta))#controller gain
 
     @property
     def tau_I(self):

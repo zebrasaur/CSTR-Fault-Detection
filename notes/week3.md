@@ -98,10 +98,15 @@ reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and
 
 ## Interview gate — answered out loud, no notes
 
-- [ ] Why does this reactor have three steady states? Which one are you
-      on, and how do you know? ANS: every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch where dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. the generation function reaches maximum when conversion reaches 1, all of the reactant is already gone so the reactor cant generate any more heat. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch,
-- [ ] Where does the fouling fault show up, and where does it NOT? Why?
-- [ ] What is integral windup, and what did you do about it?
+- [x] Why does this reactor have three steady states? Which one are you
+      on, and how do you know? 
+      # ANS: every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch where dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. the generation function reaches maximum when conversion reaches 1, all of the reactant is already gone so the reactor cant generate any more heat. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch
+
+- [x] Where does the fouling fault show up, and where does it NOT? Why?
+     # ANS: fouling shows up in the coolant flow rate and coolant temperature. At a fixed space-time for a reactor, the concentration Ca only depends on T and our controller holds the value of T=setpoint. A dector that only measures T does not affect the concetration calculation. The controller makes T-Tc wider to increase Qjacket to match Qjacket=Qjacket,ss at the degraded UA value. This has a limit though as even with the maximum coolant flow rate for this reactor produced a minumum UA value of 362,000 j/min*K which is aboiut 39.7% UA loss. UA losses beyond this will not be cooled even with max coolant flow rate.
+
+- [x] What is integral windup, and what did you do about it?
+     # ANS: integral windup is when the error function keeps integrating even when the manipulated variable is at maxium or minimum physically. this windup up can then cause overshoots on corrections. I clamped the error function as follows: stop integrating if: variable is equal to or greater than the predetermined max value and the error is also greater than 0.0 OR if variable is equal to or less than the predetermined min value and the error is also less than 0.0 otherwise keep integrating.  
 
 ## Steady-state algebra
 tau = V/v0

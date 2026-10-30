@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 import numpy as np
 from copy import copy
@@ -37,6 +37,8 @@ class FaultEvent:
 
 def apply_sensor_faults(T_noisy, t, faults: list[FaultEvent]):
     """Corrupts temperature fed to controller"""
+    if not faults:
+        return T_noisy
     T_meas = T_noisy
     for f in faults:
       if f.fault_type == FaultType.SENSOR_BIAS:
@@ -50,6 +52,9 @@ def apply_sensor_faults(T_noisy, t, faults: list[FaultEvent]):
 
 def apply_actuator_faults(qc_cmd, t, faults: list[FaultEvent]):
     """Apply actuator faults to the coolant-flow command."""
+    if not faults: 
+      return float(np.clip(qc_cmd, 0.0, None))
+      
     qc_actual = qc_cmd
     for f in faults:
       if f.fault_type == FaultType.PUMP_TRIP:        #severity of 1.0 = 100% loss(kg/min)
@@ -60,19 +65,22 @@ def apply_actuator_faults(qc_cmd, t, faults: list[FaultEvent]):
         if f.t_start <= t< f.t_end:
             qc_actual = f.severity                   #severity holds fixed flow rate
             
-    return np.clip(qc_actual, 0.0, None)
+    return float(np.clip(qc_actual, 0.0, None))
 
 def apply_process_faults(p, t, faults: list[FaultEvent]):
     """Apply process faults to plant parameters"""
+    if not faults:
+        return p
     p_active = p
+    
     for f in faults:
         factor = f.get_severity_factor(t)
         if f.fault_type == FaultType.FOULING:
-            p_active = replace(p_active, UA=(UA*(1.0 - factor)))       #severity of 0.4 = 40% reduction in conductance
+            p_active = replace(p_active, UA=(p.UA*(1.0 - factor)))       #severity of 0.4 = 40% reduction in conductance
         elif f.fault_type == FaultType.FEED_TEMP_SURGE:
-            p_active = replace(p_active, T0 = (T0 + factor))             #severity of + factor (K)
+            p_active = replace(p_active, T0 = (p.T0 + factor))             #severity of + factor (K)
         elif f.fault_type == FaultType.FEED_CONC_SURGE:
-            p_active = replace(p_active, (C_A0 + factor))      #severity of + factor (mol/m^3)
+            p_active = replace(p_active, C_A0 = (p.C_A0 + factor))      #severity of + factor (mol/m^3)
     
     return p_active
 
