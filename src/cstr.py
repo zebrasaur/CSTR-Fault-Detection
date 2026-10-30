@@ -148,7 +148,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, qc_cmd_history
 
 def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_params=None, 
-             fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02):
+             faults=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02):
     '''simulating the reactor for 300 minutes '''
     p = default_params() if params is None else params
     C_A_ss, T_setpoint, Tc_ss, qc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
@@ -163,7 +163,7 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_
     controller = CSTRCoolantPI(config, setpoint = T_setpoint)
     
     (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, trajectory, qc_cmd)=solve_cstr_dynamic(
-        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac
+        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults
     )
     Ca_true = trajectory[:,0]
     T_true = trajectory[:,1]

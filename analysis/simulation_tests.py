@@ -150,7 +150,7 @@ def prompt_and_run() -> dict:
       "dt": h,
       "params": params,
       "pi_params": None,
-      "fault": fault_list,
+      "faults": fault_list,
       "sigma_T": sigma_T,
       "sigma_Tc": sigma_Tc,
       "sigma_Ca": sigma_Ca,

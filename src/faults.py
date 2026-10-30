@@ -25,7 +25,7 @@ class FaultEvent:
     
         if t < self.t_start or t >= self.t_end:
             return 0.0
-        if self.ramp.duration <= 0.0:
+        if self.ramp_duration <= 0.0:
             return self.severity
         
         elapsed = t - self.t_start
@@ -42,7 +42,7 @@ def apply_sensor_faults(T_noisy, t, faults: list[FaultEvent]):
       if f.fault_type == FaultType.SENSOR_BIAS:
             T_meas += f.get_severity_Factor(t)      #severity of + factor (K)
             
-      elif f.fault_Type == FaultType.SENSOR_DRIFT:
+      elif f.fault_type == FaultType.SENSOR_DRIFT:
           if f.t_start <= t < f.t_end:
               T_meas += f.severity*(t - f.t_start)  #severity of + ramping factor (K)
               
@@ -54,7 +54,7 @@ def apply_actuator_faults(qc_cmd, t, faults: list[FaultEvent]):
     for f in faults:
       if f.fault_type == FaultType.PUMP_TRIP:        #severity of 1.0 = 1000% loss
           loss_fraction = f.get_severity_factor(t)   #severity of 0.6 = 60% loss
-          qc_actualc_actual *= 1.0 - loss_fraction
+          qc_actual *= 1.0 - loss_fraction
           
       elif f.fault_type == FaultType.VALVE_FREEZE:   
         if f.t_start <= t< f.t_end:
