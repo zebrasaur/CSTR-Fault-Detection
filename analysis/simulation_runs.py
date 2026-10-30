@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import numpy as np
 from cstr import simulate, default_params, CSTRParams
-from test_faults import pump_failure_test, heat_exchanger_fouling_test, compound_test 
+from fault_scenarios import pump_failure_test, heat_exchanger_fouling_test, compound_test 
 from controller import pi_params
 
 

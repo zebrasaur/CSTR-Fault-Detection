@@ -3,6 +3,7 @@ from dataclasses import dataclass, replace
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+from controller import PIParams, CSTRCoolantPI
 from integrate import rk4_step
 from faults import FaultType, FaultEvent, apply_sensor_faults, apply_actuator_faults, apply_process_faults
 
