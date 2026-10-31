@@ -39,7 +39,7 @@ temperature, i had to add back the noise and any faults on the last slot as the 
 
 An injected fault silently didnt run. simulate accepted the fault as an argument but never passed it on to the dynamic function, the output was the same as a healthy run with no faults, to 5 decimal places.
 
-check.py 3 failed at 7/8 saying "loop may be oscillating". Root cause was one 800K temperature outlier which occured outside the loop when it was added twice from apply_faults to the last row of the truth array. Claude found the root cause from a standard deviation of 7.30K with my code and 0.30=sigmaK with CLaude code.
+check.py 3 failed at 7/8 saying "loop may be oscillating (suggesting reducing the gain)". Root cause was one 800K temperature outlier which occured outside the loop when it was added twice from apply_faults to the last row of the truth array. Claude found the root cause from a standard deviation of 7.30K for the whole run and 0.30K with the last sample left out. One 800k outlier measurment turned a 0.3K spread into a 7.3K spread.
 
 lots of problems trying to implement a user input prompts. had to build float, integer, string, and a dataclass ask prompt. then learned to pass using a dict and printing the dict. learned how to pass the dict values into individual functions across three different files. lots of import bugs and problems. dataclasses are hard to learn to properly pass around.
 
@@ -78,7 +78,7 @@ The highest temperature an uncooled CSTR can sustain is bounded by T0 + deltaT_a
 saturates at full conversion while the feed’s sensible duty keeps rising. With T0 = 300, deltaT_ad = 156.25K, Tmax = 456.25, the conversion at this temp is X = 0.95 using our residence time vo/V, the actual 
 Temperature is lower, 448 K in my case.
 
-At pump failure, qc_cmd and qc_max are now much less physically but the controller doesnt know that and the error integral keeps increasing leading to whats known as windup. The reactor slowly heats up and the thermal driving forces gets bigger along with the controllers qc_cmd. For a test case it took 49.5 minutes for qc_cmd to hit qc_max. After the pump fix the integral windup slowly unwinds as the controller lowers qc_cmd and the reactor cools in an undershoot with a real risk of reactor extinction
+At pump failure, the real maximum flow drops below the controller's coded maximum flow, but the controller doesnt know that and the error integral keeps increasing leading to whats known as windup. The reactor slowly heats up and the thermal driving forces gets bigger along with the controllers qc_cmd. For a test case (pump capped at 45% of max output) it took 49.5 minutes for qc_cmd to hit qc_max. After the pump fix the integral windup slowly unwinds as the controller lowers qc_cmd and the reactor cools in an undershoot with a real risk of reactor extinction
 
 tried to implement an anti-windup limit on the measured coolant flow and not on the command to stop over correction when pump faults occur. failed and decided to make this a future project as i dont have time for another distraction
 
@@ -90,10 +90,9 @@ Check plots for steady state and sanity check.converted everything to /minute in
 
 Decided on the half-pipe flow because its a resonable design decision with a spacetime of 1.1 minutes. the variable coolant flow rate can be passed directly into the deriviatives with the required coolant volume in the half pipes. the manipulated variable is coolant flow rate and the hold up is the mass of coolant in the half pipes
 
-Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_sigma, Tc_sigma = 0.3 (high accuracy). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02 (conservative). The concentration analysis was done using "state estimators" with soft sensors using state parameters. For our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca + noise, with simga_Ca = 0.03.
+Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_sigma, Tc_sigma = 0.3 (conservative). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02 (conservative). For our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca*(1+noise), with simga_Ca = 0.03. The concentration will be done in the future using "state estimators" with soft sensors using state parameters. 
 
-Fluid feed properties are water like with rho 1000 kg/m^3 and Cp = 4000 j/kg*K. to avoid a gas phase, the
-reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and venting not modelled. liquid is assumed throughout including exit stream (effluent throttling ) via control valve (not modelled). Constant volume of liquid held by nitrogen padding of the reactor vapor headspace with back pressure regulation and effluent throttling. 
+Fluid feed properties are water like with rho 1000 kg/m^3 and Cp = 4000 j/kg*K. to avoid a gas phase, the reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and venting not modelled. liquid is assumed throughout including exit stream (effluent throttling ) via control valve (not modelled). Constant volume of liquid held by nitrogen padding of the reactor vapor headspace with back pressure regulation and effluent throttling. 
 
 
 
@@ -111,7 +110,7 @@ reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and
      # ANS: fouling shows up in the coolant flow rate and coolant temperature. At a fixed space-time, the concentration only depends on temperature  and our controller fixes temperature. The controller wides the thermal driving force of the jacket by increasing the coolant flow rate, which in turns lower the jacket temperature, This has a limit though as even with a fully open valve UA losses greater than a minimum causes temperature to settle above the setpoint and the fouling finally shows up in both temperature and concentration
 
 - [x] What is integral windup, and what did you do about it?
-     # ANS: integral windup is when the error function keeps integrating even when the manipulated variable is at maxium or minimum physically. this windup up can then cause overshoots on corrections. I froze the error function as follows: stop integrating if variable is equal to or greater than the predetermined max value and the error is also greater than 0.0 OR if variable is equal to or less than the predetermined min value and the error is also less than 0.0 otherwise keep integrating. There will still be overshoot and a slow recovery as the excess integral unwinds. A back-calculaton or external reset from the measured actuator ouptut stops the windup behind a hidden limit.
+     # ANS: integral windup is when the error function keeps integrating even when the manipulated variable is at maxium or minimum physically. this windup up can then cause overshoots on corrections. I froze the integral term of the error function as follows: stop integrating if variable is equal to or greater than the predetermined max value and the error is also greater than 0.0 OR if variable is equal to or less than the predetermined min value and the error is also less than 0.0 otherwise keep integrating. There will still be overshoot and a slow recovery as the excess integral unwinds. A back-calculaton or external reset from the measured actuator ouptut stops the windup behind a hidden limit.
 
 ## Steady-state algebra
 tau = V/v0
