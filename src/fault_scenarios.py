@@ -32,7 +32,7 @@ compound_test = [
     FaultEvent(
         fault_type=FaultType.FEED_CONC_SURGE,
         t_start= 5.0,
-        t_end= 20.0,                                #transient shock that clears after 8 min
+        t_end= 20.0,                                #transient shock that clears after 15 min
         severity= 400.0,                            #+400 mol/m3 (+16% reactant)
     ),
     FaultEvent(

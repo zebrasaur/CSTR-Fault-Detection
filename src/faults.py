@@ -1,7 +1,6 @@
 from dataclasses import dataclass, replace
 from enum import Enum
 import numpy as np
-from copy import copy
 
 class FaultType(Enum):
     PUMP_TRIP = "pump_trip"                 #Coolant flow drops by fraction [0, 1]

@@ -35,15 +35,15 @@ range require controller retune as well as a full stability check. Temperatures 
 Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter.noise sigmas sigma_T and sigma_Tc is set to 0.03 for a p100RTD, sigma_Ca is set to 3% of reading. flow_frac of 0.02 is used for magmeter for cooling water. 
 
 had to fill the last slot after the rfk4 loop. usually [-1] = [-2] but for 
-temperature, i had to add back the noise and any faults on the last slot as the last measured T = the last True T. tried to do it togther in one line which lead to to 
-double additions of T. seperated the noise/faults into seperate lines.
+temperature, i had to add back the noise and any faults on the last slot as the last measured T was the last True T. tried to do it togther in one line by adding appl_sensor_faults, but that returned a temperature value not an offset value, which lead to to double additions of T. seperated the noise/faults into seperate lines.
 
-lots of problems trying to implement a user input prompts. had to build float, integer, string, and a dataclass ask prompt. then learned to pass using a dict and 
-printing the dict. learned how to pass the dict values into individual functions across three different files. lots of import bugs and problems. dataclasses are hard
-to learn to properly pass around.
+An injected fault silently didnt run. simulate accepted the fault as an argument but never passed it on to the dynamic function, the output was the same as a healthy run with no faults, to 5 decimal places.
 
-problems learning how to define and implement faults into the system without manually
-changing numbers every run. built dedicated functions for each type of fault plane: Actuator plane, process/plant plane, sensor plane. each type of fault occurs in its own plane and multiple faults are branched down. 
+check.py 3 failed at 7/8 saying "loop may be oscillating". Root cause was one 800K temperature outlier which occured outside the loop when it was added twice from apply_faults to the last row of the truth array. Claude found the root cause from a standard deviation of 7.30K with my code and 0.30=sigmaK with CLaude code.
+
+lots of problems trying to implement a user input prompts. had to build float, integer, string, and a dataclass ask prompt. then learned to pass using a dict and printing the dict. learned how to pass the dict values into individual functions across three different files. lots of import bugs and problems. dataclasses are hard to learn to properly pass around.
+
+problems learning how to define and implement faults into the system without manually changing numbers every run. built dedicated functions for each type of fault: Actuator plane, process/plant plane, sensor plane. each type of fault occurs in its own plane and multiple faults are branched down. 
 
 had to make sure any replace values for a dataclass are stored corretly as to not rewrite the dataclass when a value is updated within it in  the next branch down
 <!-- The most valuable section. Every bug you diagnose is a story you can
@@ -78,6 +78,10 @@ The highest temperature an uncooled CSTR can sustain is bounded by T0 + deltaT_a
 saturates at full conversion while the feed’s sensible duty keeps rising. With T0 = 300, deltaT_ad = 156.25K, Tmax = 456.25, the conversion at this temp is X = 0.95 using our residence time vo/V, the actual 
 Temperature is lower, 448 K in my case.
 
+At pump failure, qc_cmd and qc_max are now much less physically but the controller doesnt know that and the error integral keeps increasing leading to whats known as windup. The reactor slowly heats up and the thermal driving forces gets bigger along with the controllers qc_cmd. For a test case it took 49.5 minutes for qc_cmd to hit qc_max. After the pump fix the integral windup slowly unwinds as the controller lowers qc_cmd and the reactor cools in an undershoot with a real risk of reactor extinction
+
+tried to implement an anti-windup limit on the measured coolant flow and not on the command to stop over correction when pump faults occur. failed and decided to make this a future project as i dont have time for another distraction
+
 
 ## Decisions I made, and why
 derive various cstr analytical soultions first. Used 400K because thats what the plan called for and gemni gave me the parapmeters for testing the rest of the CSTR (checked if these made sense using cooling water as coolant).did all algebra on paper first. do a numerical analysis on paper using T = 400K for sanity check on parameters and units. Write functions to calculate steady-state parameters and heat terms and plot them using a 500 element temperature array. 
@@ -86,7 +90,7 @@ Check plots for steady state and sanity check.converted everything to /minute in
 
 Decided on the half-pipe flow because its a resonable design decision with a spacetime of 1.1 minutes. the variable coolant flow rate can be passed directly into the deriviatives with the required coolant volume in the half pipes. the manipulated variable is coolant flow rate and the hold up is the mass of coolant in the half pipes
 
-Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_simga = 0.03 (high accuracy). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02. The concentration analysis was done using "state estimators" with soft sensors using state parameters. For our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca + noise, with simga_Ca = 0.03.
+Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_sigma, Tc_sigma = 0.3 (high accuracy). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02 (conservative). The concentration analysis was done using "state estimators" with soft sensors using state parameters. For our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca + noise, with simga_Ca = 0.03.
 
 Fluid feed properties are water like with rho 1000 kg/m^3 and Cp = 4000 j/kg*K. to avoid a gas phase, the
 reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and venting not modelled. liquid is assumed throughout including exit stream (effluent throttling ) via control valve (not modelled). Constant volume of liquid held by nitrogen padding of the reactor vapor headspace with back pressure regulation and effluent throttling. 
@@ -104,10 +108,10 @@ reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and
       # ANS: every intersection between the heat generation function and heat removal function is a steady state location. there are three intersections for this reactor. For T = 400K the two functions intersect at the upper branch which is an ignited steady state branch where dQ_removed/dT > dQ_gen/dT terms. Generation is sigmoidal because the exponential Arrhenius rise is eventually capped by reactant depletion. the generation function reaches maximum when conversion reaches 1, all of the reactant is already gone so the reactor cant generate any more heat. A 156 K adiabatic rise makes the S steep enough to cross the line three times. 79% conversion implies we are on the top ignited steady state branch
 
 - [x] Where does the fouling fault show up, and where does it NOT? Why?
-     # ANS: fouling shows up in the coolant flow rate and coolant temperature. At a fixed space-time for a reactor, the concentration Ca only depends on T and our controller holds the value of T=setpoint. A dector that only measures T does not affect the concetration calculation. The controller makes T-Tc wider to increase Qjacket to match Qjacket=Qjacket,ss at the degraded UA value. This has a limit though as even with the maximum coolant flow rate for this reactor produced a minumum UA value of 362,000 j/min*K which is aboiut 39.7% UA loss. UA losses beyond this will not be cooled even with max coolant flow rate.
+     # ANS: fouling shows up in the coolant flow rate and coolant temperature. At a fixed space-time, the concentration only depends on temperature  and our controller fixes temperature. The controller wides the thermal driving force of the jacket by increasing the coolant flow rate, which in turns lower the jacket temperature, This has a limit though as even with a fully open valve UA losses greater than a minimum causes temperature to settle above the setpoint and the fouling finally shows up in both temperature and concentration
 
 - [x] What is integral windup, and what did you do about it?
-     # ANS: integral windup is when the error function keeps integrating even when the manipulated variable is at maxium or minimum physically. this windup up can then cause overshoots on corrections. I clamped the error function as follows: stop integrating if: variable is equal to or greater than the predetermined max value and the error is also greater than 0.0 OR if variable is equal to or less than the predetermined min value and the error is also less than 0.0 otherwise keep integrating.  
+     # ANS: integral windup is when the error function keeps integrating even when the manipulated variable is at maxium or minimum physically. this windup up can then cause overshoots on corrections. I froze the error function as follows: stop integrating if variable is equal to or greater than the predetermined max value and the error is also greater than 0.0 OR if variable is equal to or less than the predetermined min value and the error is also less than 0.0 otherwise keep integrating. There will still be overshoot and a slow recovery as the excess integral unwinds. A back-calculaton or external reset from the measured actuator ouptut stops the windup behind a hidden limit.
 
 ## Steady-state algebra
 tau = V/v0
@@ -120,7 +124,14 @@ mass balance: Fa0 - Fa + ra*V = 0
 reactor energy balance: p*v0*Cp*(T0-T) + (-deltHrxn)*(-ra*V) - UA*(T - Ta) = 0
 jacket energy balance: UA*(T - Ta) = mc*Cpc*(Ta - Tc,in)
 Qinlet + Qgen - Qjacket = 0
-numerical values are in Heat_plots.py
+Tc_target = T_target - (Q_jacket/UA) #coolant temperature at jacket (K)
+qc_target = Q_jacket/(Cp_coolant*(Tc_target - Tc_in)) #Coolantflowrate (kg/min)
+
+dQgen_dT = (-delta_H_rxn)*F_A0*((X_A*(1-X_A))*(Ea_over_R/(T_target)^2))
+
+UAeff = (UA*qc_target*Cp_coolant)/(qc_target*Cp_coolant + UA)
+dQremoved_dT = rho*Cp_feed*v0 + UAeff
+
 
 Coolant at 80.7 °C	It goes to a heat exchanger and the fouling fault becomes a process-side deposits on the coils, which is plausible for a reactor this hot. 
 ΔH = 250 kJ/mol	Deliberately high, to create multiplicity in operating conditions including the adiabatic temperture rise

@@ -39,7 +39,7 @@ class CSTRCoolantPI:
     self.integral = initial_integral
     
 
-  def compute(self, measurement, dt):
+  def compute(self, measurement, flowrate, dt):
     """Calculates clamped coolant flow rate mc(t) using conditional anti-windup."""
     # Direct acting: e(t) = T - T_setpoint > 0 demands higher coolant flow
     error = measurement - self.setpoint
@@ -52,6 +52,7 @@ class CSTRCoolantPI:
       i_term = 0.0
     # 4. Raw unclamped signal
     u_raw = self.cfg.u_bias + p_term + i_term 
+    
     # 5. Actuator clamping
     u_clamped = np.clip(u_raw, self.cfg.u_min, self.cfg.u_max)
     # 6. Clamping Anti-Windup: freeze integration if saturated in direction of error

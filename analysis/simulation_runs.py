@@ -174,9 +174,9 @@ print(f"Final Measured Reactor Temperature:              {out['T'][-1]:.5f} K")
 print(f"Final Measured Coolant Temperature:              {out['Tc'][-1]:.5f} K")
 print(f"Final Measured Effluent Concentration:           {out['Ca'][-1]:.5f} mol/m^3")
 print(f"Final Measured Coolant flow rate:                {out['qc'][-1]:.5f} kg/min")
-print(f"Final Designed Reactor Temperature:              {out['T_true'][-1]:.5f} K")
-print(f"Final Designed Coolant Temperature:              {out['Tc_true'][-1]:.5f} K")
-print(f"Final Designed Effluent Concentration:           {out['Ca_true'][-1]:.5f} mol/m^3")
+print(f"Final True Reactor Temperature:                  {out['T_true'][-1]:.5f} K")
+print(f"Final True Coolant Temperature:                  {out['Tc_true'][-1]:.5f} K")
+print(f"Final True Effluent Concentration:               {out['Ca_true'][-1]:.5f} mol/m^3")
 print(f"Final Commanded Coolant flow rate:               {out['qc_cmd'][-1]:.5f} kg/min")
     
     

@@ -126,7 +126,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         qc_cmd_history[i] = qc_cmd
         qc_actual = apply_actuator_faults(qc_cmd, t_curr, faults)  #valve faults
         qc_actual_history[i] = qc_actual                           #actual coolant flow rate
-        
+            
         p_current = apply_process_faults(p, t_curr, faults)
         
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_current, qc_actual)  #RK4 step
@@ -139,7 +139,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     T_meas_history[-1] = apply_sensor_faults(T_noisy, t_points[-1], faults) #last slot filled
           
     Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
-    Ca_meas_history = trajectory[:, 0] + rng.normal(0.0, sigma_Ca, size=num_steps)
+    Ca_meas_history = trajectory[:, 0] * (1.0 + rng.normal(0.0, sigma_Ca, size=num_steps))
     qc_meas_history = qc_actual_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
         
         
