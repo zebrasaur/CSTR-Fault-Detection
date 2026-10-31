@@ -32,7 +32,7 @@ Realized tuned controller was only good for the range of temperatures around the
 T = 400K, the tunning paramters are only good for Temperatures 355K - 448K. Temperatures outside of that
 range require controller retune as well as a full stability check. Temperatures outside of those ranges also produce negative coolant flow rates which i flaged as an errror message output. 
 
-Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter.
+Codded sensor noise function into invidual state parameters, temperatures, concentrations and coolant flow rate. then decided to code the noise directly into the 2D numpy array. realized the temperature noise was also fed to the controller. redid the noise function for each indivdual paramter.noise sigmas sigma_T and sigma_Tc is set to 0.03 for a p100RTD, sigma_Ca is set to 3% of reading. flow_frac of 0.02 is used for magmeter for cooling water. 
 
 had to fill the last slot after the rfk4 loop. usually [-1] = [-2] but for 
 temperature, i had to add back the noise and any faults on the last slot as the last measured T = the last True T. tried to do it togther in one line which lead to to 
@@ -43,8 +43,9 @@ printing the dict. learned how to pass the dict values into individual functions
 to learn to properly pass around.
 
 problems learning how to define and implement faults into the system without manually
-changing numbers every run. built dedicated functions for each type of fault plane: Actuator plane, process/plant plane, sensor plane. each type of fault occurs in its own plane and multiple faults are branched down. had to make sure any replace values
-for a dataclass are stored corretly as to not rewrite the dataclass when a value is updated within it in  the next branch down
+changing numbers every run. built dedicated functions for each type of fault plane: Actuator plane, process/plant plane, sensor plane. each type of fault occurs in its own plane and multiple faults are branched down. 
+
+had to make sure any replace values for a dataclass are stored corretly as to not rewrite the dataclass when a value is updated within it in  the next branch down
 <!-- The most valuable section. Every bug you diagnose is a story you can
      tell in an interview. Root cause, not just symptom. -->
 
