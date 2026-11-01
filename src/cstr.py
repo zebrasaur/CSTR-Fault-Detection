@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from controller import PIParams, CSTRCoolantPI
 from integrate import rk4_step
 from faults import FaultType, FaultEvent, apply_sensor_faults, apply_actuator_faults, apply_process_faults
+from drift import BoundedProcessDrift, DriftVariableConfig
 
 @dataclass(frozen=True)
 class CSTRParams:
@@ -94,6 +95,44 @@ def derivatives(y, t, p, qc):
     gamma_coolant = (p.UA)/(p.Vc*p.rho_c*p.Cp_coolant)
     dTc_dt = (qc/(p.rho_c*p.Vc))*((p.Tc_in- Tc)) + (gamma_coolant*(T - Tc))
     return np.array([dC_A_dt, dT_dt, dTc_dt])
+
+
+from dataclasses import replace
+from drift import BoundedProcessDrift, DriftVariableConfig
+
+
+def default_drift_generator(
+    p, rng: np.random.Generator
+) -> BoundedProcessDrift:
+  """Configures default industrial drift characteristics based on nominal FEED parameters."""
+  configs = {
+      "T0": DriftVariableConfig(
+          mean=p.T0,                # 300.0 K Modeled as p100RTD 
+          sigma_stat=2.0,           # 1 K standard deviation(well-controlled reactor)
+          tau_rev=30.0,             # 12 hr revision (feed preheater plant operations)
+          val_min=290.0,            #min
+          val_max=315.0,            #man
+      ),
+      "C_A0": DriftVariableConfig(
+          mean=p.C_A0,              # Modeled as feed from a 250 nominal m^3 holding tank with well mixed/preheater/agitator/NIR analyzer
+          sigma_stat=60.0,          # 15 mol/m3 
+          tau_rev=45.0,             # 12 hr reversion (tank space time)
+          val_min=2300.0,           #min
+          val_max=2700.0,           #max
+      ),
+      "Tc_in": DriftVariableConfig(
+          mean=p.Tc_in,             # 293.15 K Modeled as p100RTD 
+          sigma_stat=1.5,           # 1 K standard deviation (well controlled exchanger)
+          tau_rev=60.0,             # 60 min reversion (heat exchanger process lags, loop holdup)
+          val_min=288.15,           #min
+          val_max=298.15,           #max
+      ),
+  }
+  return BoundedProcessDrift(configs, rng=rng)
+
+
+
+
 
 def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
                        sigma_T, sigma_Tc, sigma_Ca, flow_frac,

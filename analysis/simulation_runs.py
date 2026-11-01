@@ -181,7 +181,10 @@ print(f"Final Commanded Coolant flow rate:               {out['qc_cmd'][-1]:.5f}
     
     
     
-# Old calculations and prints here
+    
+    
+    
+# OLD RUNS AND PRINTS START HERE
     
 '''C_A_ss, T_target, Tc_ss, qc_ss, X_A_ss = solve_steady_state(T_target,p)
 
@@ -194,16 +197,16 @@ print(f"Final Commanded Coolant flow rate:               {out['qc_cmd'][-1]:.5f}
     
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     
-    controller = CSTRCoolantPI(config, setpoint = T_target)
+    controller = CSTRCoolantPI(config, setpoint = T_target) #intialize controller everytime
     time, states, qc_history = solve_cstr_dynamic(y, t_range, h, p, controller,seed)
     
-    controller = CSTRCoolantPI(config, setpoint = T_target)
+    controller = CSTRCoolantPI(config, setpoint = T_target) #intialize controller everytime
     time, states_b, qc_history_b = solve_cstr_dynamic(y_b, t_range, h, p, controller,seed)
     
-    controller = CSTRCoolantPI(config, setpoint = T_target)
+    controller = CSTRCoolantPI(config, setpoint = T_target) #intialize controller everytime
     time, states_c, qc_history_c = solve_cstr_dynamic(y_c, t_range, h, p, controller, seed)
     
-    controller = CSTRCoolantPI(config, setpoint = T_target)
+    controller = CSTRCoolantPI(config, setpoint = T_target) #intialize controller everytime
     time, states_d, qc_history_d = solve_cstr_dynamic(y_d, t_range, h, p, controller, seed)
 '''
     

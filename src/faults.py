@@ -10,6 +10,10 @@ class FaultType(Enum):
     FEED_CONC_SURGE = "feed_conc_surge"     #CA0 shifts by delta C (mol/m^3)
     SENSOR_BIAS = "sensor_bias"             #Constant offset added to T_meas
     SENSOR_DRIFT = "sensor_drift"           #Linear drift added to T_meas over time
+    FEED_TEMP_DRIFT = "feed_temp_drift"     #continuous ramp rate in T0 (K/min)
+    FEED_CONC_DRIFT = "feed_conc_drift"     #continuous ramp rate in CA0 (mol/m^3*min)
+    
+    
     
 @dataclass(frozen=True)
 class FaultEvent:
@@ -74,12 +78,21 @@ def apply_process_faults(p, t, faults: list[FaultEvent]):
     
     for f in faults:
         factor = f.get_severity_factor(t)
+        
         if f.fault_type == FaultType.FOULING:
-            p_active = replace(p_active, UA=(p.UA*(1.0 - factor)))       #severity of 0.4 = 40% reduction in conductance
+            p_active = replace(p_active, UA=(p.UA*(1.0 - factor)))      #severity of 0.4 = 40% reduction in conductance
         elif f.fault_type == FaultType.FEED_TEMP_SURGE:
-            p_active = replace(p_active, T0 = (p.T0 + factor))             #severity of + factor (K)
+            p_active = replace(p_active, T0 = (p.T0 + factor))          #severity of + factor (K)
         elif f.fault_type == FaultType.FEED_CONC_SURGE:
             p_active = replace(p_active, C_A0 = (p.C_A0 + factor))      #severity of + factor (mol/m^3)
-    
+        elif f.fault_type == FaultType.FEED_TEMP_DRIFT:
+          if f.t_start <= t < f.t_end:
+            t_drift = f.severity * (t - f.t_start)                      #severity is K/min
+            p_active = replace(p_active, T0=p.T0 + t_drift)
+        elif f.fault_type == FaultType.FEED_CONC_DRIFT:
+            if f.t_start <= t < f.t_end:
+                ca_drift = f.severity * (t - f.t_start)                 #severity is mol/(m^3*min)
+                p_active = replace(p_active, C_A0 = p.C_A0 + ca_drift)
+                
     return p_active
 

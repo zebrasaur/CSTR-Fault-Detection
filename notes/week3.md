@@ -90,12 +90,32 @@ Check plots for steady state and sanity check.converted everything to /minute in
 
 Decided on the half-pipe flow because its a resonable design decision with a spacetime of 1.1 minutes. the variable coolant flow rate can be passed directly into the deriviatives with the required coolant volume in the half pipes. the manipulated variable is coolant flow rate and the hold up is the mass of coolant in the half pipes
 
-Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_sigma, Tc_sigma = 0.3 (conservative). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02 (conservative). For our reactor, T, Tc, qc and default paramters are used to calculate Ca_measured = Ca*(1+noise), with simga_Ca = 0.03. The concentration will be done in the future using "state estimators" with soft sensors using state parameters. 
+Sigma errors: for temperature senors, modeled after Pt100RTD sensors with T_sigma, Tc_sigma = 0.3 (conservative). For the coolant flow rate (flow_frac) sigma was modeled after a electromagnatic meter (magmeter) with flow_frac = 0.02 (conservative). The reactor is feed sensitive and Ca and Ca0 are measured with continuous NIR analyzers with a simga_Ca = 0.01. The concentration analysis will be done in the future using "state estimators" with soft sensors. 
 
 Fluid feed properties are water like with rho 1000 kg/m^3 and Cp = 4000 j/kg*K. to avoid a gas phase, the reactor is kept pressurized at 2.5 bar absolute for T = 400k. vapor pressure and venting not modelled. liquid is assumed throughout including exit stream (effluent throttling ) via control valve (not modelled). Constant volume of liquid held by nitrogen padding of the reactor vapor headspace with back pressure regulation and effluent throttling. 
 
+To model drift withint he reactor a Ornstein-Uhlenbeck SDE (stohastic diffferential equation) was used on feed parameters T0, Ca0 and Tc,in. the values are summarized in this table:
+     Parameter                               Basis
+==================================================================================================
+"T0":     mean= 300.0 K                 Modeled as p100RTD 
+          sigma_stat= 1.0,       1 K standard deviation(well-controlled reactor)
+          tau_rev=30.0,         12 hr revision (feed preheater plant operations)
+          val_min=290.0,                 min drift
+          val_max=315.0,                 max drift
 
+"C_A0":   mean = 2500.0 mol/m^3   Modeled as feed from a 250 nominal m^3 holding tank with well mixed/preheater/agitator/NIR analyzer
+          sigma_stat=60.0,          15 mol/m3
+          tau_rev=45.0,             12 hr reversion (tank space time)
+          val_min=2400.0,                  min drift
+          val_max=2600.0                   max drift
+"Tc_in": 
+          Tc_in = 293.15K         Modeled as p100RTD at heat exchanger outlet                   
+          sigma_stat=1.0,          1 K standard deviation (well controlled exchanger)
+          tau_rev=60.0,            60 min reversion (heat exchanger process lags, loop holdup)
+          val_min=283.15,                  min drift
+          val_max=303.15,                  max drift
 
+realized this reactor is feed sensitive. added the feed holding tank and a preheater to stabiize the feed at required inlet conditions to prevent extinction from feed drift. Noise using a GC analyizer ended up being a bigger factor then drift. Replaced GC analyzer with a 1% continuous NIR analyzer for liquid reaction monitoring
 <!-- Every arbitrary-looking choice needs its reason recorded NOW, while
      you still have it. "Why 400 K?" is only answerable in week 6 if you
      wrote it down in week 3. -->
