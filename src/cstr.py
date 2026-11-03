@@ -19,12 +19,12 @@ class CSTRParams:
         # Jacket and Coolant Properties
     Tc_in: float = 293.15   #Feed coolant temperature (K)
     Vc: float = 0.1195      # volume of coolant (m^3) using 3" half-pipe jacket
-    Cp_coolant: float = 4184.0          #specific heat capacity of coolant (J/kg*K)
-    UA: float = 600_000.0               #overall heat transfer capacity (J/min*K)
+    Cp_coolant: float = 4184.0          #specific heat Capacity of coolant (J/kg*K)
+    UA: float = 600_000.0               #overall heat transfer Capacity (J/min*K)
     rho_c: float = 1000.0               #fluid density of coolant (kg/m^3)
 
         # Fluid and Heat Transfer Properties
-    Cp_feed: float = 4000.0             #specific heat capacity of feed (J/(kg*K))
+    Cp_feed: float = 4000.0             #specific heat Capacity of feed (J/(kg*K))
     delta_H_rxn: float = -250_000.0     #Heat of reaction (J/mol) exothermic
     rho: float = 1000.0                 #fluid density (kg/m^3)
     
@@ -52,7 +52,7 @@ def rate_constant(T, p):
 
 def heat_duties(T, p):
     k = rate_constant(T,p) #rate constant (1/min)
-    conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
+    conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion Calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
     Q_gen = ((-p.delta_H_rxn))*(k*C_A*p.V) #Heat gen J/min
     Q_inlet = p.rho*p.Cp_feed*p.v0*(T - p.T0) #Heat duty J/min of inlet stream
@@ -65,7 +65,7 @@ def solve_steady_state(T_target, params=None):
     
     p = default_params() if params is None else params
     k = rate_constant(T_target,p)
-    conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion calculation
+    conversion = (k*p.tau)/(1+k*p.tau) #fractional conversion Calculation
     C_A = p.C_A0*(1 - conversion)      #exit stream concentration (mol/m^3)
     Q_gen, Q_inlet, Q_jacket = heat_duties(T_target,p)
     Tc_target = T_target - (Q_jacket/p.UA) #coolant temperature at jacket (K)
@@ -150,7 +150,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     #Initialize trjaectories
     y_curr = np.asarray(y_initial, dtype= np.float64)
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64) #[Ca,T, Tc]
-    feed_trajectory = np.empty((num_steps, 4), dtype=np.float64) #[CA0, T0, Tc_in, UA_true]
+    feed_trajectory = np.empty((num_steps, 4), dtype=np.float64) #[Ca0, T0, Tc_in, UA_true]
     qc_cmd_history = np.empty((num_steps), dtype=np.float64)
     qc_actual_history = np.empty((num_steps), dtype=np.float64) 
     T_meas_history = np.empty((num_steps), dtype=np.float64)
@@ -238,11 +238,11 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, dri
     (dynamic_out, trajectory, feed_trajectory)=solve_cstr_dynamic(
         y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift)
 
-    #[CA_column, CA0_column = 0, T_column, T0_column = 1, Tc_column, Tc_in_column = 2, UA_column = 3]
-    CA_true = trajectory[:,0]
+    #[Ca_column, Ca0_column = 0, T_column, T0_column = 1, Tc_column, Tc_in_column = 2, UA_column = 3]
+    Ca_true = trajectory[:,0]
     T_true = trajectory[:,1]
     Tc_true = trajectory[:,2]
-    CA0_true = feed_trajectory[:,0]
+    Ca0_true = feed_trajectory[:,0]
     T0_true = feed_trajectory[:,1]
     Tc_in_true = feed_trajectory[:,2]
     UA_true = feed_trajectory[:,3]
@@ -251,16 +251,16 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, dri
     tgrid = dynamic_out[0]
     T_measured = dynamic_out[1]
     Tc_measured = dynamic_out[2]
-    CA_measured = dynamic_out[3]
+    Ca_measured = dynamic_out[3]
     qc_measured = dynamic_out[4]
     qc_cmd = dynamic_out[5]
     T0_measured = dynamic_out[6]
     Tc_in_measured = dynamic_out[7]
-    CA0_measured = dynamic_out[8]
+    Ca0_measured = dynamic_out[8]
     
-    out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "CA": CA_measured, "qc": qc_measured, 
-             "T_true": T_true, "Tc_true": Tc_true,"CA_true": CA_true, "qc_cmd":qc_cmd, "T0": T0_measured,
-             "Tc_in": Tc_in_measured, "CA0": CA0_measured, "CA0_true": CA0_true,
+    out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
+             "T_true": T_true, "Tc_true": Tc_true,"Ca_true": Ca_true, "qc_cmd":qc_cmd, "T0": T0_measured,
+             "Tc_in": Tc_in_measured, "Ca0": Ca0_measured, "Ca0_true": Ca0_true,
              "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true})
 
     n_warm = int(round(warmup / dt))               # 120 / 0.05 -> 2400 samples
