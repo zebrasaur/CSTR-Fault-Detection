@@ -5,7 +5,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import numpy as np
 from cstr import simulate, default_params, CSTRParams
 from fault_scenarios import pump_failure_test, heat_exchanger_fouling_test, compound_test 
-from controller import pi_params
 from cstr import default_drift_generator
 
 
@@ -110,8 +109,8 @@ def ask_int(prompt: str, default: int = 0) -> int:
     return default
   
 def ask_drift(
-    prompt: str = "Apply process drift? [yes/no]", default: str = "YES"
-) -> bool:
+    prompt: str = "Apply process drift? [yes/no]", default: str = "YES"):
+  
   """Prompts user to enable/disable OU process drift."""
   raw = input(f"{prompt} (Press Enter for '{default}'): ").strip().lower()
 
@@ -152,9 +151,9 @@ def prompt_and_run() -> dict:
     endable_drift = ask_drift("Apply process drift? [yes/no]", default="YES")
     if endable_drift:
         drift_label = "Active"
-        drift=True
+        drift=True 
     else:
-      drift = None
+      drift = False
       drift_label = "None"
     fault_list, fault_label = ask_faults("Enter test faults: ", default="none") #pump, fouling, compound
     sigma_T = ask_float("Enter reactor Temperature sigma: ", default=0.3)
@@ -164,7 +163,7 @@ def prompt_and_run() -> dict:
     
 
     print_table(setpoint, duration, h, seed, fault_label, sigma_T, sigma_Tc, sigma_Ca, flow_frac)
-    print(f"Process Drift: {drift_label}")
+    print(f"PROCESS DRIFT: {drift_label}!!!!!!!!!!!!!!!!")
     
     return {
       "duration": duration,
@@ -186,21 +185,32 @@ def prompt_and_run() -> dict:
 Input:(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift=True, 
 fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02)
 
-Output: {"time":"T":"Tc":"Ca":"qc":"T_true":"Tc_true":"Ca_true":"qc_cmd"}
+Output: {"time": tgrid, "T": T_measured, "Tc": Tc_measured, "CA": CA_measured, "qc": qc_measured, 
+        "T_true": T_true, "Tc_true": Tc_true,"CA_true": CA_true, "qc_cmd":qc_cmd, "T0": T0_measured,
+        "Tc_in": Tc_in_measured, "CA0": CA0_measured, "CA0_true": CA0_true,
+        "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true}
 '''
 cfg = prompt_and_run()
 out = simulate(**cfg)  
 
-
+print("=" * 100)
 print(f"Final time:                                      {out['time'][-1]:.5f} min")
 print(f"Final Measured Reactor Temperature:              {out['T'][-1]:.5f} K")
 print(f"Final Measured Coolant Temperature:              {out['Tc'][-1]:.5f} K")
-print(f"Final Measured Effluent Concentration:           {out['Ca'][-1]:.5f} mol/m^3")
+print(f"Final Measured Effluent Concentration:           {out['CA'][-1]:.5f} mol/m^3")
 print(f"Final Measured Coolant flow rate:                {out['qc'][-1]:.5f} kg/min")
+print(f"Final Measured Feed Temperature:                 {out['T0'][-1]:.5f} K")
+print(f"Final Measured Feed Coolant Temperature:         {out['Tc_in'][-1]:.5f} K")
+print(f"Final Measured Feed Concentration:               {out['CA0'][-1]:.5f} mol/m^3")
+print("=" * 100)
 print(f"Final True Reactor Temperature:                  {out['T_true'][-1]:.5f} K")
 print(f"Final True Coolant Temperature:                  {out['Tc_true'][-1]:.5f} K")
-print(f"Final True Effluent Concentration:               {out['Ca_true'][-1]:.5f} mol/m^3")
-print(f"Final Commanded Coolant flow rate:               {out['qc_cmd'][-1]:.5f} kg/min")
+print(f"Final True Effluent Concentration:               {out['CA_true'][-1]:.5f} mol/m^3")
+print(f"Final True Coolant flow rate:                    {out['qc_cmd'][-1]:.5f} kg/min")
+print(f"Final True Feed Temperature:                     {out['T0_true'][-1]:.5f} K")
+print(f"Final True Feed Coolant Temperature:             {out['Tc_in_true'][-1]:.5f} K")
+print(f"Final True Feed Concentration:                   {out['CA0_true'][-1]:.5f} mol/m^3")
+print(f"Final True UA                 :                  {out['UA_true'][-1]:.5f} W/K")
     
     
     

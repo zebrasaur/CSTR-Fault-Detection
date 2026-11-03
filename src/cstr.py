@@ -150,7 +150,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     #Initialize trjaectories
     y_curr = np.asarray(y_initial, dtype= np.float64)
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64) #[Ca,T, Tc]
-    feed_trajectory = np.empty((num_steps, 3), dtype=np.float64) #[Ca0, T0, Tcin]
+    feed_trajectory = np.empty((num_steps, 4), dtype=np.float64) #[CA0, T0, Tc_in, UA_true]
     qc_cmd_history = np.empty((num_steps), dtype=np.float64)
     qc_actual_history = np.empty((num_steps), dtype=np.float64) 
     T_meas_history = np.empty((num_steps), dtype=np.float64)
@@ -191,7 +191,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_step, qc_actual)
         
         #Fill feed trajectory
-        feed_trajectory[i,:] = (p_step.C_A0, p_step.T0, p_step.Tc_in)
+        feed_trajectory[i,:] = (p_step.C_A0, p_step.T0, p_step.Tc_in, p_step.UA)
         
         trajectory[i+1,:] = y_curr
         
@@ -238,29 +238,30 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, dri
     (dynamic_out, trajectory, feed_trajectory)=solve_cstr_dynamic(
         y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift)
 
-    #[CA_column, CA0_column = 0] [T_column, T0_column = 1] [Ca_column, Ca0_column = 2]
-    Ca_true = trajectory[:,0]
+    #[CA_column, CA0_column = 0, T_column, T0_column = 1, Tc_column, Tc_in_column = 2, UA_column = 3]
+    CA_true = trajectory[:,0]
     T_true = trajectory[:,1]
     Tc_true = trajectory[:,2]
-    Ca0_true = feed_trajectory[:,0]
+    CA0_true = feed_trajectory[:,0]
     T0_true = feed_trajectory[:,1]
     Tc_in_true = feed_trajectory[:,2]
+    UA_true = feed_trajectory[:,3]
     
     #dynamic_out[tgrid, Tmeas, Tc_meas, Ca_meas, qc_meas, qc_cmd, T0_meas, Tcin_meas, Ca0_meas]
     tgrid = dynamic_out[0]
     T_measured = dynamic_out[1]
     Tc_measured = dynamic_out[2]
-    Ca_measured = dynamic_out[3]
+    CA_measured = dynamic_out[3]
     qc_measured = dynamic_out[4]
     qc_cmd = dynamic_out[5]
     T0_measured = dynamic_out[6]
     Tc_in_measured = dynamic_out[7]
-    C_A0_measured = dynamic_out[8]
+    CA0_measured = dynamic_out[8]
     
-    out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
-             "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd, "T0": T0_measured,
-             "Tc_in_measured": Tc_in_measured, "CA0_measured": C_A0_measured, "CA0_true": Ca0_true,
-             "T0_true": T0_true, "Tc,in_true": Tc_in_true})
+    out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "CA": CA_measured, "qc": qc_measured, 
+             "T_true": T_true, "Tc_true": Tc_true,"CA_true": CA_true, "qc_cmd":qc_cmd, "T0": T0_measured,
+             "Tc_in": Tc_in_measured, "CA0": CA0_measured, "CA0_true": CA0_true,
+             "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true})
 
     n_warm = int(round(warmup / dt))               # 120 / 0.05 -> 2400 samples
     out = {k: v[n_warm:] for k, v in out.items()}  # same keys, every array starts at t = 0
