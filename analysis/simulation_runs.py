@@ -6,6 +6,7 @@ import numpy as np
 from cstr import simulate, default_params, CSTRParams
 from fault_scenarios import pump_failure_test, heat_exchanger_fouling_test, compound_test 
 from controller import pi_params
+from cstr import default_drift_generator
 
 
                 #DEFINE FAULT NAMES
@@ -107,7 +108,21 @@ def ask_int(prompt: str, default: int = 0) -> int:
   except ValueError:
     print(f"Invalid integer entered. Falling back to default: {default}")
     return default
+  
+def ask_drift(
+    prompt: str = "Apply process drift? [yes/no]", default: str = "YES"
+) -> bool:
+  """Prompts user to enable/disable OU process drift."""
+  raw = input(f"{prompt} (Press Enter for '{default}'): ").strip().lower()
 
+  # If user hits Enter, types 'none', or 'no'
+  if  raw in ["none", "no", "n", "false"]:
+    return False
+  if not raw or raw in ["yes", "y", "true", "YES"]:
+    return True
+
+  print(f"Unrecognized option '{raw}'. Falling back to '{default}'.")
+  return True
                     #PRINT INPUTED VALUES
 def print_table(setpoint, duration, h, seed, fault_label, sigma_T, sigma_Tc, sigma_Ca, flow_frac):
     
@@ -134,15 +149,24 @@ def prompt_and_run() -> dict:
     h = ask_float("Enter simulation dt = step size: ", default=0.05)
     seed = ask_int("Enter seed value (must be integer!): ", default= 0)
     params = ask_reactor_params()   #prompt for modified CSTR parameters(none=default)
+    endable_drift = ask_drift("Apply process drift? [yes/no]", default="YES")
+    if endable_drift:
+        drift_label = "Active"
+        rng = np.random.default_rng(seed)
+        drift_gen = default_drift_generator(params, rng=rng)
+    else:
+      drift_gen = None
+      drift_label = "None"
     fault_list, fault_label = ask_faults("Enter test faults: ", default="none") #pump, fouling, compound
     sigma_T = ask_float("Enter reactor Temperature sigma: ", default=0.3)
     sigma_Tc = ask_float("Enter coolant Temperature sigma: ", default=0.3)
-    sigma_Ca = ask_float("Enter concentration sigma: ", default=0.03)
+    sigma_Ca = ask_float("Enter concentration sigma: ", default=0.01)
     flow_frac = ask_float("Enter valve flow_frac: ", default=0.02)
     
 
     print_table(setpoint, duration, h, seed, fault_label, sigma_T, sigma_Tc, sigma_Ca, flow_frac)
-
+    print(f"Process Drift: {drift_label}")
+    
     return {
       "duration": duration,
       "T_setpoint": setpoint,
@@ -151,6 +175,7 @@ def prompt_and_run() -> dict:
       "params": params,
       "pi_params": None,
       "faults": fault_list,
+      "drift_gen":drift_gen,
       "sigma_T": sigma_T,
       "sigma_Tc": sigma_Tc,
       "sigma_Ca": sigma_Ca,
@@ -158,9 +183,8 @@ def prompt_and_run() -> dict:
   }
 
 #Solve
-
 '''
-Input:(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_params=None, 
+Input:(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, enable_drift=None, 
 fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02)
 
 Output: {"time":"T":"Tc":"Ca":"qc":"T_true":"Tc_true":"Ca_true":"qc_cmd"}

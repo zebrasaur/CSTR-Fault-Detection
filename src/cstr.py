@@ -97,13 +97,9 @@ def derivatives(y, t, p, qc):
     return np.array([dC_A_dt, dT_dt, dTc_dt])
 
 
-from dataclasses import replace
-from drift import BoundedProcessDrift, DriftVariableConfig
-
 
 def default_drift_generator(
-    p, rng: np.random.Generator
-) -> BoundedProcessDrift:
+    p, rng) -> BoundedProcessDrift:
   """Configures default industrial drift characteristics based on nominal FEED parameters."""
   configs = {
       "T0": DriftVariableConfig(
@@ -128,7 +124,7 @@ def default_drift_generator(
           val_max=298.15,           #max
       ),
   }
-  return BoundedProcessDrift(configs, rng=rng)
+  return BoundedProcessDrift(configs, rng)
 
 
 
@@ -136,47 +132,69 @@ def default_drift_generator(
 
 def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
                        sigma_T, sigma_Tc, sigma_Ca, flow_frac,
-                       faults: list[FaultEvent] | None = None):
+                       faults: list[FaultEvent] | None = None, drift_gen=None):
     '''simulates a cstr with coolant flowrate PI controller with noise '''
     if faults is None:
         faults = []
     t_start, t_end = t_range                            #time in minutes
     t_points = np.arange(t_start, t_end+(h/2.0), h)     #time grid in minutes
     num_steps = len(t_points)
+    state_dim = y_initial.shape[0]
+    rng = np.random.default_rng(seed)
+    warmup= abs(t_range[0])
+    
+    #Initialize trjaectories
     y_curr = np.asarray(y_initial, dtype= np.float64)
-    state_dim = y_curr.shape[0]
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
     qc_cmd_history = np.empty((num_steps), dtype=np.float64)
     qc_actual_history = np.empty((num_steps), dtype=np.float64) 
     T_meas_history = np.empty((num_steps), dtype=np.float64)
     T_meas_history[0]=y_initial[1] 
     trajectory[0,:] = y_curr
-    rng = np.random.default_rng(seed)
+    
            
     #Move time forward
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
         T_noisy = y_curr[1] + rng.normal(0.0, sigma_T)          #Temp sensor noise
-        T_meas = apply_sensor_faults(T_noisy, t_curr, faults)   #Temp sensor faults
+        
+        #Temp sensor faults
+        T_meas = apply_sensor_faults(T_noisy, t_curr, faults)   
         T_meas_history[i] = T_meas
         
-        qc_cmd = controller.compute(measurement=T_meas, dt=step_h) #controller
+        #Controller
+        qc_cmd = controller.compute(measurement=T_meas, dt=step_h) 
         qc_cmd_history[i] = qc_cmd
-        qc_actual = apply_actuator_faults(qc_cmd, t_curr, faults)  #valve faults
-        qc_actual_history[i] = qc_actual                           #actual coolant flow rate
-            
-        p_current = apply_process_faults(p, t_curr, faults)
         
-        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_current, qc_actual)  #RK4 step
+        #Valve faults
+        qc_actual = apply_actuator_faults(qc_cmd, t_curr, faults)  
+        qc_actual_history[i] = qc_actual       #actual coolant flow rate
+        
+        #Drift injection
+        if drift_gen is not None:
+            drift_vals = drift_gen.step(dt=step_h)
+            p_step = replace(p, T0=drift_vals["T0"], 
+                             C_A0=drift_vals["C_A0"], Tc_in=drift_vals["Tc_in"])
+        else:
+            p_step=p
+        
+        #Process faults here      
+        p_step = apply_process_faults(p_step, t_curr, faults)
+        
+        #RK4 STEP
+        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_step, qc_actual)  
 
         trajectory[i+1,:] = y_curr
-        
-    qc_cmd_history[-1] = qc_cmd_history[-2]                          #last slot filled
-    qc_actual_history[-1] = qc_actual_history[-2]                   #last slot filled
+    
+    
+    #Last slot of Trajectories Filled        
+    qc_cmd_history[-1] = qc_cmd_history[-2]                #last slot filled
+    qc_actual_history[-1] = qc_actual_history[-2]          #last slot filled
     T_noisy = trajectory[-1,1] + rng.normal(0.0, sigma_T)
     T_meas_history[-1] = apply_sensor_faults(T_noisy, t_points[-1], faults) #last slot filled
-          
+    
+    #Noise added to remaining parameters
     Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
     Ca_meas_history = trajectory[:, 0] * (1.0 + rng.normal(0.0, sigma_Ca, size=num_steps))
     qc_meas_history = qc_actual_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
@@ -186,9 +204,9 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         
     return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, qc_cmd_history
 
-def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_params=None, 
-             faults=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02):
-    '''simulating the reactor for 300 minutes '''
+def simulate(warmup=120, duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift_gen=None, pi_params=None, 
+             faults=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.01, flow_frac = 0.02):
+   
     p = default_params() if params is None else params
     C_A_ss, T_setpoint, Tc_ss, qc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
     
@@ -197,20 +215,26 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, pi_
     
     config = PIParams(u_bias=qc_ss, u_min=0.0, u_max=2*qc_ss)
     y0 = np.asarray([C_A_ss, T_setpoint, Tc_ss])
-    t_range = (0.0, duration)                                   #simulation time in minutes
+    t_range = (-warmup, duration)    #simulation with warmup time in minutes
     
     controller = CSTRCoolantPI(config, setpoint = T_setpoint)
     
+    
     (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, trajectory, qc_cmd)=solve_cstr_dynamic(
-        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults
-    )
+        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift_gen)
+
+
     Ca_true = trajectory[:,0]
     T_true = trajectory[:,1]
     Tc_true = trajectory[:,2]
     
-    
-    return ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
+    out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
              "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd })
+
+    n_warm = int(round(warmup / dt))               # 120 / 0.05 -> 2400 samples
+    out = {k: v[n_warm:] for k, v in out.items()}  # same keys, every array starts at t = 0
     
+    
+    return out
     
 

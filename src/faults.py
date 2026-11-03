@@ -85,11 +85,11 @@ def apply_process_faults(p, t, faults: list[FaultEvent]):
             p_active = replace(p_active, T0 = (p.T0 + factor))          #severity of + factor (K)
         elif f.fault_type == FaultType.FEED_CONC_SURGE:
             p_active = replace(p_active, C_A0 = (p.C_A0 + factor))      #severity of + factor (mol/m^3)
-        elif f.fault_type == FaultType.FEED_TEMP_DRIFT:
+        elif f.fault_type == FaultType.FEED_TEMP_RAMP:
           if f.t_start <= t < f.t_end:
             t_drift = f.severity * (t - f.t_start)                      #severity is K/min
             p_active = replace(p_active, T0=p.T0 + t_drift)
-        elif f.fault_type == FaultType.FEED_CONC_DRIFT:
+        elif f.fault_type == FaultType.FEED_CONC_RAMP:
             if f.t_start <= t < f.t_end:
                 ca_drift = f.severity * (t - f.t_start)                 #severity is mol/(m^3*min)
                 p_active = replace(p_active, C_A0 = p.C_A0 + ca_drift)
