@@ -23,6 +23,10 @@ class BoundedProcessDrift:
         
     '''Initialize variables at their nominal means'''
     self.states: dict[str, float] = {k: cfg.mean for k, cfg in configs.items()}
+    for k, cfg in configs.items():
+        z = self.rng.standard_normal()
+        initial_val = cfg.mean + cfg.sigma_stat*z
+        self.states[k] = float(np.clip(initial_val, cfg.val_min, cfg.val_max))
 
 
   def step(self, dt: float) -> dict[str, float]:

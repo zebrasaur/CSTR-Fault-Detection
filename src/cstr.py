@@ -104,21 +104,21 @@ def default_drift_generator(
   configs = {
       "T0": DriftVariableConfig(
           mean=p.T0,                # 300.0 K Modeled as p100RTD 
-          sigma_stat=2.0,           # 1 K standard deviation(well-controlled reactor)
-          tau_rev=30.0,             # 12 hr revision (feed preheater plant operations)
+          sigma_stat=1.0,           # 1 K standard deviation(well-controlled reactor)
+          tau_rev=720.0,             # 12 hr revision (feed preheater plant operations)
           val_min=290.0,            #min
           val_max=315.0,            #man
       ),
       "C_A0": DriftVariableConfig(
           mean=p.C_A0,              # Modeled as feed from a 250 nominal m^3 holding tank with well mixed/preheater/agitator/NIR analyzer
-          sigma_stat=60.0,          # 15 mol/m3 
-          tau_rev=45.0,             # 12 hr reversion (tank space time)
+          sigma_stat=15.0,          # 15 mol/m3 
+          tau_rev=720.0,             # 12 hr reversion (tank space time)
           val_min=2300.0,           #min
           val_max=2700.0,           #max
       ),
       "Tc_in": DriftVariableConfig(
           mean=p.Tc_in,             # 293.15 K Modeled as p100RTD 
-          sigma_stat=1.5,           # 1 K standard deviation (well controlled exchanger)
+          sigma_stat=1.0,           # 1 K standard deviation (well controlled exchanger)
           tau_rev=60.0,             # 60 min reversion (heat exchanger process lags, loop holdup)
           val_min=288.15,           #min
           val_max=298.15,           #max
@@ -132,32 +132,37 @@ def default_drift_generator(
 
 def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
                        sigma_T, sigma_Tc, sigma_Ca, flow_frac,
-                       faults: list[FaultEvent] | None = None, drift_gen=None):
+                       faults: list[FaultEvent] | None = None, drift=True):
     '''simulates a cstr with coolant flowrate PI controller with noise '''
     if faults is None:
         faults = []
     t_start, t_end = t_range                            #time in minutes
-    t_points = np.arange(t_start, t_end+(h/2.0), h)     #time grid in minutes
-    num_steps = len(t_points)
+    num_steps = int(round((t_end - t_start) / h)) + 1 
+    t_points = t_start + h*np.arange(num_steps)         #time grid in minutes
     state_dim = y_initial.shape[0]
-    rng = np.random.default_rng(seed)
-    warmup= abs(t_range[0])
+    noise_seq, drift_seq = np.random.SeedSequence(seed).spawn(2)
+    drift_rng = np.random.default_rng(drift_seq)
+    noise_rng = np.random.default_rng(noise_seq)
+    drift_gen = default_drift_generator(p, drift_rng) if drift else None
+
+
     
     #Initialize trjaectories
     y_curr = np.asarray(y_initial, dtype= np.float64)
-    trajectory = np.empty((num_steps, state_dim), dtype=np.float64)
+    trajectory = np.empty((num_steps, state_dim), dtype=np.float64) #[Ca,T, Tc]
+    feed_trajectory = np.empty((num_steps, 3), dtype=np.float64) #[Ca0, T0, Tcin]
     qc_cmd_history = np.empty((num_steps), dtype=np.float64)
     qc_actual_history = np.empty((num_steps), dtype=np.float64) 
     T_meas_history = np.empty((num_steps), dtype=np.float64)
     T_meas_history[0]=y_initial[1] 
-    trajectory[0,:] = y_curr
+    trajectory[0,:] = y_initial
     
            
     #Move time forward
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
-        T_noisy = y_curr[1] + rng.normal(0.0, sigma_T)          #Temp sensor noise
+        T_noisy = y_curr[1] + noise_rng.normal(0.0, sigma_T) #Temp sensor noise
         
         #Temp sensor faults
         T_meas = apply_sensor_faults(T_noisy, t_curr, faults)   
@@ -183,29 +188,40 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         p_step = apply_process_faults(p_step, t_curr, faults)
         
         #RK4 STEP
-        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_step, qc_actual)  
-
+        y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_step, qc_actual)
+        
+        #Fill feed trajectory
+        feed_trajectory[i,:] = (p_step.C_A0, p_step.T0, p_step.Tc_in)
+        
         trajectory[i+1,:] = y_curr
+        
     
     
     #Last slot of Trajectories Filled        
     qc_cmd_history[-1] = qc_cmd_history[-2]                #last slot filled
     qc_actual_history[-1] = qc_actual_history[-2]          #last slot filled
-    T_noisy = trajectory[-1,1] + rng.normal(0.0, sigma_T)
+    T_noisy = trajectory[-1,1] + noise_rng.normal(0.0, sigma_T)
     T_meas_history[-1] = apply_sensor_faults(T_noisy, t_points[-1], faults) #last slot filled
+    feed_trajectory[-1] = feed_trajectory[-2]
     
     #Noise added to remaining parameters
-    Tc_meas_history = trajectory[:, 2] + rng.normal(0.0, sigma_Tc, size=num_steps)
-    Ca_meas_history = trajectory[:, 0] * (1.0 + rng.normal(0.0, sigma_Ca, size=num_steps))
-    qc_meas_history = qc_actual_history * (1.0 + rng.normal(0.0, flow_frac, size=num_steps))
+    Tc_meas_history = trajectory[:, 2] + noise_rng.normal(0.0, sigma_Tc, size=num_steps)
+    Ca_meas_history = trajectory[:, 0] * (1.0 + noise_rng.normal(0.0, sigma_Ca, size=num_steps))
+    qc_meas_history = qc_actual_history * (1.0 + noise_rng.normal(0.0, flow_frac, size=num_steps))
+    C_A0_measured = feed_trajectory[:,0] * (1.0 + noise_rng.normal(0.0, sigma_Ca, size=num_steps))
+    T0_measured = feed_trajectory[:,1] + noise_rng.normal(0.0, sigma_T, size=num_steps)
+    Tc_in_measured = feed_trajectory[:,2] + noise_rng.normal(0.0, sigma_Tc, size=num_steps)
+    
+    dynamic_out = [t_points, T_meas_history, Tc_meas_history, 
+                   Ca_meas_history, qc_meas_history, qc_cmd_history, 
+                   T0_measured, Tc_in_measured, C_A0_measured]
         
         
         
-        
-    return t_points, T_meas_history, Tc_meas_history, Ca_meas_history, qc_meas_history, trajectory, qc_cmd_history
+    return dynamic_out, trajectory, feed_trajectory
 
-def simulate(warmup=120, duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift_gen=None, pi_params=None, 
-             faults=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.01, flow_frac = 0.02):
+def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift=True, pi_params=None, 
+             faults=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.01, flow_frac = 0.02, warmup=120):
    
     p = default_params() if params is None else params
     C_A_ss, T_setpoint, Tc_ss, qc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
@@ -216,20 +232,35 @@ def simulate(warmup=120, duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, para
     config = PIParams(u_bias=qc_ss, u_min=0.0, u_max=2*qc_ss)
     y0 = np.asarray([C_A_ss, T_setpoint, Tc_ss])
     t_range = (-warmup, duration)    #simulation with warmup time in minutes
-    
     controller = CSTRCoolantPI(config, setpoint = T_setpoint)
     
     
-    (tgrid, T_measured, Tc_measured, Ca_measured, qc_measured, trajectory, qc_cmd)=solve_cstr_dynamic(
-        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift_gen)
+    (dynamic_out, trajectory, feed_trajectory)=solve_cstr_dynamic(
+        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift)
 
-
+    #[CA_column, CA0_column = 0] [T_column, T0_column = 1] [Ca_column, Ca0_column = 2]
     Ca_true = trajectory[:,0]
     T_true = trajectory[:,1]
     Tc_true = trajectory[:,2]
+    Ca0_true = feed_trajectory[:,0]
+    T0_true = feed_trajectory[:,1]
+    Tc_in_true = feed_trajectory[:,2]
+    
+    #dynamic_out[tgrid, Tmeas, Tc_meas, Ca_meas, qc_meas, qc_cmd, T0_meas, Tcin_meas, Ca0_meas]
+    tgrid = dynamic_out[0]
+    T_measured = dynamic_out[1]
+    Tc_measured = dynamic_out[2]
+    Ca_measured = dynamic_out[3]
+    qc_measured = dynamic_out[4]
+    qc_cmd = dynamic_out[5]
+    T0_measured = dynamic_out[6]
+    Tc_in_measured = dynamic_out[7]
+    C_A0_measured = dynamic_out[8]
     
     out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
-             "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd })
+             "T_true": T_true, "Tc_true": Tc_true,"Ca_true":Ca_true, "qc_cmd":qc_cmd, "T0": T0_measured,
+             "Tc_in_measured": Tc_in_measured, "CA0_measured": C_A0_measured, "CA0_true": Ca0_true,
+             "T0_true": T0_true, "Tc,in_true": Tc_in_true})
 
     n_warm = int(round(warmup / dt))               # 120 / 0.05 -> 2400 samples
     out = {k: v[n_warm:] for k, v in out.items()}  # same keys, every array starts at t = 0

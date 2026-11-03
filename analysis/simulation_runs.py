@@ -152,10 +152,9 @@ def prompt_and_run() -> dict:
     endable_drift = ask_drift("Apply process drift? [yes/no]", default="YES")
     if endable_drift:
         drift_label = "Active"
-        rng = np.random.default_rng(seed)
-        drift_gen = default_drift_generator(params, rng=rng)
+        drift=True
     else:
-      drift_gen = None
+      drift = None
       drift_label = "None"
     fault_list, fault_label = ask_faults("Enter test faults: ", default="none") #pump, fouling, compound
     sigma_T = ask_float("Enter reactor Temperature sigma: ", default=0.3)
@@ -175,7 +174,7 @@ def prompt_and_run() -> dict:
       "params": params,
       "pi_params": None,
       "faults": fault_list,
-      "drift_gen":drift_gen,
+      "drift": drift,
       "sigma_T": sigma_T,
       "sigma_Tc": sigma_Tc,
       "sigma_Ca": sigma_Ca,
@@ -184,7 +183,7 @@ def prompt_and_run() -> dict:
 
 #Solve
 '''
-Input:(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, enable_drift=None, 
+Input:(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift=True, 
 fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02)
 
 Output: {"time":"T":"Tc":"Ca":"qc":"T_true":"Tc_true":"Ca_true":"qc_cmd"}
