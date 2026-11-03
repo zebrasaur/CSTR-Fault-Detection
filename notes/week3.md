@@ -202,3 +202,13 @@ wed       4              dynamic cstr
 thur      4              math clean up 
 frid      4              code clean up
 sat       4    24        dynamic cstr
+Sun       2                   "
+Mon       2               controller
+Tues      4                   "
+wed       4                   simulate()
+thur      4                   noise
+frid      4                   noise
+sat       4    31             faults
+sun       4    Nov 1          drift     
+Mon       4    Nov 2          drift
+Tues      4    Nov 3          close out of week 3
