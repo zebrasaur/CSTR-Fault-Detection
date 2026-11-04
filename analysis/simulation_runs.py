@@ -71,13 +71,11 @@ def ask_faults(prompt: str, default: str = "none"):
 
   # Normalize default in case None or uppercase is passed
   default_key = "none" if (default is None or default == "") else str(default).lower()
-
   raw = (
       input(f"{prompt} [{options}] (Press Enter for '{default_key}'): ")
       .strip()
       .lower()
   )
-
   # Fallback to default if user just pressed Enter
   chosen_key = raw if raw else default_key
 
@@ -185,10 +183,10 @@ def prompt_and_run() -> dict:
 Input:(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift=True, 
 fault=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.03, flow_frac = 0.02)
 
-Output: {"time": tgrid, "T": T_measured, "Tc": Tc_measured, "CA": CA_measured, "qc": qc_measured, 
-        "T_true": T_true, "Tc_true": Tc_true,"CA_true": CA_true, "qc_cmd":qc_cmd, "T0": T0_measured,
-        "Tc_in": Tc_in_measured, "CA0": CA0_measured, "CA0_true": CA0_true,
-        "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true}
+Output:      "time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
+             "T_true": T_true, "Tc_true": Tc_true,"Ca_true": Ca_true, "qc_cmd":qc_cmd, "T0": T0_measured,
+             "Tc_in": Tc_in_measured, "Ca0": Ca0_measured, "Ca0_true": Ca0_true,
+             "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true})
 '''
 cfg = prompt_and_run()
 out = simulate(**cfg)  
@@ -197,19 +195,19 @@ print("=" * 100)
 print(f"Final time:                                      {out['time'][-1]:.5f} min")
 print(f"Final Measured Reactor Temperature:              {out['T'][-1]:.5f} K")
 print(f"Final Measured Coolant Temperature:              {out['Tc'][-1]:.5f} K")
-print(f"Final Measured Effluent Concentration:           {out['CA'][-1]:.5f} mol/m^3")
+print(f"Final Measured Effluent Concentration:           {out['Ca'][-1]:.5f} mol/m^3")
 print(f"Final Measured Coolant flow rate:                {out['qc'][-1]:.5f} kg/min")
 print(f"Final Measured Feed Temperature:                 {out['T0'][-1]:.5f} K")
 print(f"Final Measured Feed Coolant Temperature:         {out['Tc_in'][-1]:.5f} K")
-print(f"Final Measured Feed Concentration:               {out['CA0'][-1]:.5f} mol/m^3")
+print(f"Final Measured Feed Concentration:               {out['Ca0'][-1]:.5f} mol/m^3")
 print("=" * 100)
 print(f"Final True Reactor Temperature:                  {out['T_true'][-1]:.5f} K")
 print(f"Final True Coolant Temperature:                  {out['Tc_true'][-1]:.5f} K")
-print(f"Final True Effluent Concentration:               {out['CA_true'][-1]:.5f} mol/m^3")
+print(f"Final True Effluent Concentration:               {out['Ca_true'][-1]:.5f} mol/m^3")
 print(f"Final True Coolant flow rate:                    {out['qc_cmd'][-1]:.5f} kg/min")
 print(f"Final True Feed Temperature:                     {out['T0_true'][-1]:.5f} K")
 print(f"Final True Feed Coolant Temperature:             {out['Tc_in_true'][-1]:.5f} K")
-print(f"Final True Feed Concentration:                   {out['CA0_true'][-1]:.5f} mol/m^3")
+print(f"Final True Feed Concentration:                   {out['Ca0_true'][-1]:.5f} mol/m^3")
 print(f"Final True UA                 :                  {out['UA_true'][-1]:.5f} W/K")
     
     

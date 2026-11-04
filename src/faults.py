@@ -2,19 +2,20 @@ from dataclasses import dataclass, replace
 from enum import Enum
 import numpy as np
 
-class FaultType(Enum):
+class FaultType(str, Enum):
     PUMP_TRIP = "pump_trip"                 #Coolant flow drops by fraction [0, 1]
     VALVE_FREEZE = "valve_freeze"           #Valve locks at specific mass flow rate
     FOULING = "fouling"                     #UA drops abruptly or ramps down
     FEED_TEMP_SURGE = "feed_temp_surge"     #T0 shifts by a delta T (K)
     FEED_CONC_SURGE = "feed_conc_surge"     #CA0 shifts by delta C (mol/m^3)
-    SENSOR_BIAS = "sensor_bias"             #Constant offset added to T_meas
+    SENSOR_BIAS_TEMP = "sensor_bias_temp"   #Constant offset (K)
     SENSOR_DRIFT = "sensor_drift"           #Linear drift added to T_meas over time
     FEED_TEMP_RAMP = "feed_temp_ramp"       #continuous ramp rate in T0 (K/min)
     FEED_CONC_RAMP = "feed_conc_ramp"       #continuous ramp rate in CA0 (mol/m^3*min)
     
     
-    
+
+        
 @dataclass(frozen=True)
 class FaultEvent:
     fault_type: FaultType
@@ -44,7 +45,7 @@ def apply_sensor_faults(T_noisy, t, faults: list[FaultEvent]):
         return T_noisy
     T_meas = T_noisy
     for f in faults:
-      if f.fault_type == FaultType.SENSOR_BIAS:
+      if f.fault_type == FaultType.SENSOR_BIAS_TEMP:
             T_meas += f.get_severity_factor(t)      #severity of + factor (K)
             
       elif f.fault_type == FaultType.SENSOR_DRIFT:
@@ -57,8 +58,8 @@ def apply_actuator_faults(qc_cmd, t, faults: list[FaultEvent]):
     """Apply actuator faults to the coolant-flow command."""
     if not faults: 
       return float(np.clip(qc_cmd, 0.0, None))
-      
-    qc_actual = qc_cmd
+      qc_actual = qc_cmd
+    
     for f in faults:
       if f.fault_type == FaultType.PUMP_TRIP:        #severity of 1.0 = 100% loss(kg/min)
           loss_fraction = f.get_severity_factor(t)   #severity of 0.6 = 60% loss

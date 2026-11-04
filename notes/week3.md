@@ -116,6 +116,26 @@ To model drift withint he reactor a Ornstein-Uhlenbeck SDE (stohastic diffferent
           val_max=303.15,                  max drift
 
 realized this reactor is feed sensitive. added the feed holding tank and a preheater to stabiize the feed at required inlet conditions to prevent extinction from feed drift. Noise using a GC analyizer ended up being a bigger factor then drift. Replaced GC analyzer with a 1% continuous NIR analyzer for liquid reaction monitoring
+
+I ran each fault starting on day 2 and clearing on day 6, with drift on:
+
+Fault	               Before it clears	                    After it clears
+RTD bias +5 K	T         395.3 K	                         Back within 1.5 K in 6 min
+RTD bias −5 K	T         405.2 K	                         Back within 1.5 K in 5 min
+Pump loss 30%	T         400.4 K, command 162 kg/min	     Dips to 382.5 K at +9 min, recovers in 23 min
+Pump loss 50%	T         402.1 K, command at u_max	     Falls to 304 K and stays there
+Pump loss 70%	T         417.7 K, command at u_max	     Falls to 304 K and stays there
+
+Pump loss, then instant restore	     Lowest T after restore
+          30%	                                 384.4 K              36%	                                375.3 K
+          40%	                                 365.3 K
+          42%	                                 359.6 K
+          45%	                            Extinguished
+
+while the pump is weak, the controller’s integral term holds the command high to make up for it. Restore the pump and the same command delivers 1/(1 − loss) times as much coolant at once: 1.8× at 45%, 3.3× at 70%. T drops past the extinction point before the integral can unwind. Above 50% loss the integral is also wound up against u_max, which makes it worse.
+
+Your reactor can only be cooled, so once it falls to 305 K nothing relights it.
+
 <!-- Every arbitrary-looking choice needs its reason recorded NOW, while
      you still have it. "Why 400 K?" is only answerable in week 6 if you
      wrote it down in week 3. -->

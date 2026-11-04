@@ -156,6 +156,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     T_meas_history = np.empty((num_steps), dtype=np.float64)
     T_meas_history[0]=y_initial[1] 
     trajectory[0,:] = y_initial
+    labels = np.zeros(num_steps, dtype=np.int32)
     
            
     #Move time forward
@@ -163,6 +164,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
         T_noisy = y_curr[1] + noise_rng.normal(0.0, sigma_T) #Temp sensor noise
+        
         
         #Temp sensor faults
         T_meas = apply_sensor_faults(T_noisy, t_curr, faults)   
