@@ -4,36 +4,44 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from faults import FaultType, FaultEvent
  
- 
-@dataclass(frozen=True)
-class FaultSeverityRanges:
-    """Continuous boundaries [min, max] for randomized fault severities."""
-    fouling: Tuple[float, float] = (0.10, 0.50)         # 10% to 50% loss in UA
-    pump_trip: Tuple[float, float] = (0.10, 0.70)       # 10% to 70% flow reduction
-    sensor_bias_temp: Tuple[float, float] = (-5.0, 5.0) # -5 K to +5 K measurement bias
- 
- 
-def fault_parameters(rng: np.random.Generator, config: DatasetConfig):
-    """Randomly select fault type, start time, and severity within bounds."""
-    
-    candidate_faults = [
-        FaultType.FOULING,
-        FaultType.PUMP_TRIP,
-        FaultType.SENSOR_BIAS_TEMP,
-    ]
-    fault_type = rng.choice(candidate_faults)
-    t_start = rng.uniform(*config.fault_start_window)
 
-    ranges = config.severity_ranges
-    if fault_type == FaultType.FOULING:
-        severity = rng.uniform(*ranges.fouling)
-    elif fault_type == FaultType.PUMP_TRIP:
-        severity = rng.uniform(*ranges.pump_trip)
-    elif fault_type == FaultType.SENSOR_BIAS_TEMP:
-        severity = rng.uniform(*ranges.sensor_bias_temp)
-    else:
-        severity = 0.0
+# Scenario A: Partial Coolant Pump Failure (70% flow loss at t = 10 min)
 
-    return fault_type, float(t_start), float(severity) 
- 
- 
+pump_failure_test = [
+    FaultEvent(
+        fault_type=FaultType.PUMP_TRIP,
+        t_start= 10.0,                               # minutes
+        severity= 0.70,                              # leaves only 30% available flow
+    )
+]
+
+
+# Scenario B: Progressive Exchanger Fouling (30% loss ramped over 15 min)
+
+heat_exchanger_fouling_test = [
+    FaultEvent(
+        fault_type=FaultType.FOULING,
+        t_start= 5.0,
+        severity= 0.30,                              # 30% drop in UA
+        ramp_duration= 15.0,                         #ramps down between t=5 and t=20 min
+    )
+]
+
+# Scenario C: Severe Compound Stress Test (Concentration spike + Sensor Bias)
+compound_test = [
+    FaultEvent(
+        fault_type=FaultType.FEED_CONC_SURGE,
+        t_start= 5.0,
+        t_end= 20.0,                                #transient shock that clears after 15 min
+        severity= 400.0,                            #+400 mol/m3 (+16% reactant)
+    ),
+    FaultEvent(
+        fault_type=FaultType.SENSOR_BIAS_TEMP,
+        t_start= 12.0,
+        severity= -5.0,                            #RTD reports 5 K colder than reality
+    ),
+]
+
+
+
+

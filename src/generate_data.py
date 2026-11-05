@@ -1,10 +1,3 @@
-"""
-Generates disjoint Train, Validation, and Test datasets for CSTR fault detection.
-- Train: Normal runs only (baseline dynamic modeling / residual fitting)
-- Val:   Normal runs only (decision threshold & persistence calibration)
-- Test:  Disjoint Normal runs (unbiased FAR) + Faulted runs (TDR & detection delay)
-"""
-
 from dataclasses import dataclass, field
 from enum import Enum
 import json
@@ -14,21 +7,14 @@ import numpy as np
 import pandas as pd
 from cstr import simulate
 import random
+from faults import FaultType, FaultEvent
+"""
+Generates disjoint Train, val, and Test datasets for CSTR fault detection.
+- Train: Normal runs only (baseline dynamic modeling / residual fitting)
+- Val:   Normal runs only (decision threshold & persistence calibration)
+- Test:  Disjoint Normal runs (unbiased FAR) + Faulted runs (TDR & detection delay)
+"""
 
-
-class FaultType(str, Enum):
-    NONE = "none"
-    FOULING = "fouling"       # Drop in heat transfer coefficient (UA)
-    PUMP_TRIP = "pump_trip"   # Sudden loss or drop in coolant flow capacity
-    SENSOR_BIAS_TEMP = "sensor_bias_temp"     # Step bias added to reactor temperature sensor
-    
-@dataclass(frozen=True)
-class FaultSeverityRanges:
-    """Continuous boundaries [min, max] for randomized fault severities."""
-    sign = random.choice([-1, 1])
-    fouling: Tuple[float, float] = (0.10, 0.50)         # 10% to 50% loss in UA
-    pump_trip: Tuple[float, float] = (0.10, 0.70)       # 10% to 70% flow reduction
-    sensor_bias_temp: Tuple[float, float] = sign*(0.5, 5.0) # +/- 0.5 K to +5 K measurement bias
 
 
 @dataclass
@@ -38,41 +24,23 @@ class DatasetConfig:
     n_test_normal: int = 50
     n_test_faulted: int = 50
     base_seed: int = 0
-    sim_time: float = 1440          #minutes
-    dt: float = 0.05                #minutes
-    fault_start_window: Tuple[float, float] = (120.0, 420.0)  # Start between 2 hr and 7 hr
-    severity_ranges: FaultSeverityRanges = field(default_factory=FaultSeverityRanges)
+    sim_time: float = 1440*14           #minutes
+    dt: float = 0.05                    #minutes
+    is_faulted: bool = False
+    fault_type: str = "none"
+    fouling_range: Tuple[float, float] = (0.10, 0.50)         # 10% to 50% loss in UA
+    pump_trip_range: Tuple[float, float] = (0.10, 0.70)       # 10% to 70% flow reduction
+    sensor_bias_temp_range: Tuple[float, float] = (0.5, 5.0) # +/- 0.5 K to +5 K measurement bias
+    fault_start_window: Tuple[float, float] = (4320.0, 10,080.0)  # Start between 2-7 days (minutes)
 
 
 @dataclass
 class RunMetadata:
     run_id: str
     split: str
-    is_faulted: bool
-    fault_type: str
     fault_start_time: float
     fault_severity: float
     seed: int
-
-
-def get_severity(fault_type, config: DatasetConfig):
-    
-    rng = np.random.Generator
-    t_start = rng.uniform(*config.fault_start_window)
-
-    ranges = config.severity_ranges
-    if fault_type == FaultType.FOULING:
-        severity = rng.uniform(*ranges.fouling)
-    elif fault_type == FaultType.PUMP_TRIP:
-        severity = rng.uniform(*ranges.pump_trip)
-    elif fault_type == FaultType.SENSOR_BIAS_TEMP:
-        severity = rng.uniform(*ranges.sensor_bias_temp)
-    else:
-        raise ValueError(f"severity zero")
-
-    return t_start, severity
-    
-
 
 
 def generate_splits(config: DatasetConfig, output_dir: Path):
@@ -83,9 +51,8 @@ def generate_splits(config: DatasetConfig, output_dir: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest: Dict[str, List[Path]] = {
         "train": [],
-        "validation": [],
-        "test_normal": [],
-        "test_faulted": [],
+        "val": [],
+        "test": [],
     }
 
     # Deterministic global seed counters
@@ -94,10 +61,27 @@ def generate_splits(config: DatasetConfig, output_dir: Path):
 
     plan = [
         ("train", config.n_train, False),
-        ("validation", config.n_val, False),
-        ("test_normal", config.n_test_normal, False),
-        ("test_faulted", config.n_test_faulted, True),
+        ("val", config.n_val, False),
+        ("test", config.n_test_faulted, True),
     ]
+
+    # Initialize generator properly with a seed
+    rng = np.random.default_rng(config.base_seed)
+    # Defensively handle tuple order (low, high)
+    t_min, t_max = sorted(config.fault_start_window)
+    fault_onset = rng.uniform(t_min, t_max)
+    if config.fault_type == FaultType.FOULING:
+        sev_min, sev_max = sorted(config.fouling_range)
+        severity = rng.uniform(sev_min, sev_max)
+    elif config.fault_type == FaultType.PUMP_TRIP:
+        sev_min, sev_max = sorted(config.pump_trip_range)
+        severity = rng.uniform(sev_min, sev_max)
+    elif config.fault_type == FaultType.SENSOR_BIAS_TEMP:
+        sev_min, sev_max = sorted(config.sensor_bias_temp_range)
+        severity = rng.uniform(sev_min, sev_max)
+    else:
+        severity = 0.0
+
 
     for split_name, count, is_faulted in plan:
         split_dir = output_dir / split_name
@@ -107,71 +91,56 @@ def generate_splits(config: DatasetConfig, output_dir: Path):
             run_id = f"{split_name}_{i:04d}"
             current_seed = seed_offset
             seed_offset += 1
-            run_rng = np.random.default_rng(current_seed)
-
-            if is_faulted:
-                f_type, f_start, f_sev = sample_fault_parameters(run_rng, config)
-            else:
-                f_type, f_start, f_sev = FaultType.NONE, None, 0.0
-
-            meta = RunMetadata(
-                run_id=run_id,
-                split=split_name,
-                is_faulted=is_faulted,
-                fault_type=f_type.value,
-                fault_start_time=f_start,
-                fault_severity=round(f_sev, 4),
-                seed=current_seed,
-            )
 
             # Generate trajectory
-            sim_data = simulate(duration = 1440.0)
-
-            # Persist array payload and discrete metadata
-            run_file = split_dir / f"{run_id}.npz"
-            np.savez_compressed(
-                run_file,
-                **sim_data,
-                metadata_json=json.dumps(meta.__dict__)
+            sim_data = simulate(
+                duration=config.sim_time,
+                seed=current_seed,
+                faults=config.fault_type,
+                severity=severity,
+                fault_onset=fault_onset,
             )
-            manifest[split_name].append(run_file)
+            sim_data = {k: v[::40] for k, v in sim_data.items()}  # 2-minute logging: every 40th sample of 0.05 min
+            df = pd.DataFrame(sim_data)  # one column per key, one row per sample
+            df.insert(0, "run_id", current_seed)                  # seeds never repeat across splits, so run_ids are unique
+            df["fault"] = config.fault_type                       # a single value fills every row
+            df["severity"] = severity                             # 0.0 for normal runs
+            df["onset"] = onset                                   # np.nan for normal runs
+            
+            MEASURED = ["run_id", "time", "fault_type", "severity", "onset","T", "Tc", "Ca", "qc", "qc_cmd", "T0", "Tc_in", "Ca0"]
+            TRUTH = ["run_id", "time"] + [c for c in df.columns if c.endswith("_true")]
+            frames, truth_frames, run_rows = [], [], []
+            frames.append(df[MEASURED])
+            truth_frames.append(df[TRUTH])
+            run_rows.append({"run_id": current_seed, "split": "train", "fault": fault_type,
+                 "severity": severity, "onset": onset})
 
-    # Export generation manifest
-    summary_path = output_dir / "split_manifest.json"
-    with open(summary_path, "w") as f:
-        json.dump(
-            {
-                "config": config.__dict__,
-                "counts": {k: len(v) for k, v in manifest.items()},
-                "severity_ranges": config.severity_ranges.__dict__,
-            },
-            f,
-            indent=2,
-            default=str
-        )
-
-    return manifest
+    pd.concat(frames, ignore_index=True).to_csv(DATA / "train.csv", index=False, float_format="%.4f")
+    pd.concat(truth_frames, ignore_index=True).to_csv(DATA / "train_truth.csv", index=False, float_format="%.4f")
 
 
 if __name__ == "__main__":
+    
     dataset_config = DatasetConfig(
-        n_train=1,
-        n_val=1,
-        n_test_normal=1,
+        n_train=2,
+        n_val=2,
+        n_test_normal=2,
         n_test_faulted=0,
         base_seed=0,
-        sim_time = 1440.0,
-        dt = 0.05,
-        fault_start_window=(120.0, 420.0),
+        sim_time=1440 * 14,  # minutes
+        dt=0.05,             # minutes
+        is_faulted=False,
+        fault_type= "none",
+        fouling_range=(0.10, 0.50),
+        pump_trip_range=(0.10, 0.70),
+        sensor_bias_temp_range=(0.5, 5.0),
+        fault_start_window=(4320.0, 10080.0),
+
     )
 
     out_path = Path("./data/runs")
     splits = generate_splits(dataset_config, out_path)
 
-    print(f"Generated {len(splits['train'])} Train runs (NOC)")
-    print(f"Generated {len(splits['validation'])} Validation runs (NOC - threshold tuning)")
-    print(f"Generated {len(splits['test_normal'])} Test-Normal runs (held-out FAR)")
-    print(f"Generated {len(splits['test_faulted'])} Test-Faulted runs (TDR & detection delay)")
 
 
 
