@@ -64,24 +64,7 @@ def generate_splits(config: DatasetConfig, output_dir: Path):
         ("val", config.n_val, False),
         ("test", config.n_test_faulted, True),
     ]
-
-    # Initialize generator properly with a seed
     rng = np.random.default_rng(config.base_seed)
-    # Defensively handle tuple order (low, high)
-    t_min, t_max = sorted(config.fault_start_window)
-    fault_onset = rng.uniform(t_min, t_max)
-    if config.fault_type == FaultType.FOULING:
-        sev_min, sev_max = sorted(config.fouling_range)
-        severity = rng.uniform(sev_min, sev_max)
-    elif config.fault_type == FaultType.PUMP_TRIP:
-        sev_min, sev_max = sorted(config.pump_trip_range)
-        severity = rng.uniform(sev_min, sev_max)
-    elif config.fault_type == FaultType.SENSOR_BIAS_TEMP:
-        sev_min, sev_max = sorted(config.sensor_bias_temp_range)
-        severity = rng.uniform(sev_min, sev_max)
-    else:
-        severity = 0.0
-
 
     for split_name, count, is_faulted in plan:
         split_dir = output_dir / split_name
@@ -92,11 +75,33 @@ def generate_splits(config: DatasetConfig, output_dir: Path):
             current_seed = seed_offset
             seed_offset += 1
 
+            if not is_faulted:
+                faults = []
+                fault_onset = 0.0
+                severity = 0.0
+            else:   
+                # Randomize fault onset and severity as before
+                t_min, t_max = sorted(config.fault_start_window)
+                fault_onset = float(rng.uniform(t_min, t_max))
+
+                if fault_type == FaultType.FOULING:
+                    severity = float(rng.uniform(*sorted(config.fouling_range)))
+                elif fault_type == FaultType.PUMP_TRIP:
+                    severity = float(rng.uniform(*sorted(config.pump_trip_range)))
+                elif fault_type == FaultType.SENSOR_BIAS_TEMP:
+                    severity = float(rng.uniform(*sorted(config.sensor_bias_temp_range)))
+                else:
+                    severity = 0.0
+
+
+            fault_obj = FaultEvent(fault_type=FaultType, fault_onset=fault_onset, severity=severity)
+            faults = [fault_obj]
+            
             # Generate trajectory
             sim_data = simulate(
                 duration=config.sim_time,
                 seed=current_seed,
-                faults=config.fault_type,
+                faults=faults,
                 severity=severity,
                 fault_onset=fault_onset,
             )
