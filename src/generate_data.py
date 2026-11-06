@@ -86,7 +86,8 @@ def generate_splits(config: DatasetConfig):
                 elif kind == FaultType.PUMP_TRIP:
                     severity = float(rng.uniform(*sorted(config.pump_trip_range)))
                 elif kind == FaultType.SENSOR_BIAS_TEMP:
-                    severity = float(rng.uniform(*sorted(config.sensor_bias_temp_range)))
+                    sign = rng.choice([-1.0, 1.0])        # exa
+                    severity = float(sign*(rng.uniform(*sorted(config.sensor_bias_temp_range))))
                 else:
                     severity = 0.0
                 ramp = 3 * 1440.0 if kind == FaultType.FOULING else 0.0
