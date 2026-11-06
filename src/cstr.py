@@ -132,11 +132,8 @@ def default_drift_generator(
 
 def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
                        sigma_T, sigma_Tc, sigma_Ca, flow_frac,
-                       faults: list[FaultEvent] | None = None, 
-                       drift=True, severity=0.0, fault_onset=0.0):
+                       faults: list[FaultEvent] | None = None, drift=True):
     '''simulates a cstr with coolant flowrate PI controller with noise '''
-    
-    #Initialize parameters
     if faults is None:
         faults = []
     t_start, t_end = t_range                            #time in minutes
@@ -146,11 +143,11 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     noise_seq, drift_seq = np.random.SeedSequence(seed).spawn(2)
     drift_rng = np.random.default_rng(drift_seq)
     noise_rng = np.random.default_rng(noise_seq)
-    
+    drift_gen = default_drift_generator(p, drift_rng) if drift else None
+
 
     
     #Initialize trjaectories
-    drift_gen = default_drift_generator(p, drift_rng) if drift else None
     y_curr = np.asarray(y_initial, dtype= np.float64)
     trajectory = np.empty((num_steps, state_dim), dtype=np.float64) #[Ca,T, Tc]
     feed_trajectory = np.empty((num_steps, 4), dtype=np.float64) #[Ca0, T0, Tc_in, UA_true]
@@ -165,16 +162,18 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     for i in range(num_steps-1):
         t_curr = t_points[i]
         step_h = t_points[i + 1] - t_curr
-        #Temp sensor noise
-        T_noisy = y_curr[1] + noise_rng.normal(0.0, sigma_T) 
+        T_noisy = y_curr[1] + noise_rng.normal(0.0, sigma_T) #Temp sensor noise
+        
         #Temp sensor faults
-        T_meas = apply_sensor_faults(T_noisy, t_curr, faults, fault_onset, severity)   
+        T_meas = apply_sensor_faults(T_noisy, t_curr, faults)   
         T_meas_history[i] = T_meas
+        
         #Controller
         qc_cmd = controller.compute(measurement=T_meas, dt=step_h) 
         qc_cmd_history[i] = qc_cmd
+        
         #Valve faults
-        qc_actual = apply_actuator_faults(qc_cmd, t_curr, faults, fault_onset, severity)  
+        qc_actual = apply_actuator_faults(qc_cmd, t_curr, faults)  
         qc_actual_history[i] = qc_actual       #actual coolant flow rate
         
         #Drift injection
@@ -186,7 +185,7 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
             p_step=p
         
         #Process faults here      
-        p_step = apply_process_faults(p_step, t_curr, faults, fault_onset, severity)
+        p_step = apply_process_faults(p_step, t_curr, faults)
         
         #RK4 STEP
         y_curr = rk4_step(derivatives, y_curr, t_curr, step_h, p_step, qc_actual)
@@ -196,6 +195,8 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
         
         trajectory[i+1,:] = y_curr
         
+    
+    
     #Last slot of Trajectories Filled        
     qc_cmd_history[-1] = qc_cmd_history[-2]                #last slot filled
     qc_actual_history[-1] = qc_actual_history[-2]          #last slot filled
@@ -210,17 +211,17 @@ def solve_cstr_dynamic(y_initial, t_range, h, p, controller, seed,
     C_A0_measured = feed_trajectory[:,0] * (1.0 + noise_rng.normal(0.0, sigma_Ca, size=num_steps))
     T0_measured = feed_trajectory[:,1] + noise_rng.normal(0.0, sigma_T, size=num_steps)
     Tc_in_measured = feed_trajectory[:,2] + noise_rng.normal(0.0, sigma_Tc, size=num_steps)
-    severity_out = [severity_actuator, severity_fouling, severity_RTD]
     
     dynamic_out = [t_points, T_meas_history, Tc_meas_history, 
                    Ca_meas_history, qc_meas_history, qc_cmd_history, 
                    T0_measured, Tc_in_measured, C_A0_measured]
         
+        
+        
     return dynamic_out, trajectory, feed_trajectory
 
 def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, drift=True, pi_params=None, 
-             faults: list[FaultEvent] | None = None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.01, 
-             flow_frac = 0.02, warmup=120, severity=0.0, fault_onset=0.0):
+             faults=None, sigma_T=0.3, sigma_Tc=0.3, sigma_Ca=0.01, flow_frac = 0.02, warmup=120):
    
     p = default_params() if params is None else params
     C_A_ss, T_setpoint, Tc_ss, qc_ss, X_A_ss = solve_steady_state(T_setpoint,p)
@@ -235,7 +236,7 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, dri
     
     
     (dynamic_out, trajectory, feed_trajectory)=solve_cstr_dynamic(
-        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift, severity, fault_onset)
+        y0, t_range, dt, p, controller, seed, sigma_T, sigma_Tc, sigma_Ca, flow_frac, faults, drift)
 
     #[Ca_column, Ca0_column = 0, T_column, T0_column = 1, Tc_column, Tc_in_column = 2, UA_column = 3]
     Ca_true = trajectory[:,0]
@@ -260,7 +261,7 @@ def simulate(duration=300.0, T_setpoint=400.0, seed=0, dt=0.05, params=None, dri
     out = ({"time": tgrid, "T": T_measured, "Tc": Tc_measured, "Ca": Ca_measured, "qc": qc_measured, 
              "T_true": T_true, "Tc_true": Tc_true,"Ca_true": Ca_true, "qc_cmd":qc_cmd, "T0": T0_measured,
              "Tc_in": Tc_in_measured, "Ca0": Ca0_measured, "Ca0_true": Ca0_true,
-             "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true, "severity": severity, "onset":fault_onset })
+             "T0_true": T0_true, "Tc_in_true": Tc_in_true, "UA_true": UA_true})
 
     n_warm = int(round(warmup / dt))               # 120 / 0.05 -> 2400 samples
     out = {k: v[n_warm:] for k, v in out.items()}  # same keys, every array starts at t = 0
