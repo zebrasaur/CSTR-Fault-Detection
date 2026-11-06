@@ -8,7 +8,7 @@ class FaultType(Enum):
     FOULING = "fouling"                     #UA drops abruptly or ramps down
     FEED_TEMP_SURGE = "feed_temp_surge"     #T0 shifts by a delta T (K)
     FEED_CONC_SURGE = "feed_conc_surge"     #CA0 shifts by delta C (mol/m^3)
-    SENSOR_BIAS = "sensor_bias"             #Constant offset added to T_meas
+    SENSOR_BIAS_TEMP = "sensor_bias_temp"             #Constant offset added to T_meas
     SENSOR_DRIFT = "sensor_drift"           #Linear drift added to T_meas over time
     FEED_TEMP_RAMP = "feed_temp_ramp"       #continuous ramp rate in T0 (K/min)
     FEED_CONC_RAMP = "feed_conc_ramp"       #continuous ramp rate in CA0 (mol/m^3*min)
@@ -44,7 +44,7 @@ def apply_sensor_faults(T_noisy, t, faults: list[FaultEvent]):
         return T_noisy
     T_meas = T_noisy
     for f in faults:
-      if f.fault_type == FaultType.SENSOR_BIAS:
+      if f.fault_type == FaultType.SENSOR_BIAS_TEMP:
             T_meas += f.get_severity_factor(t)      #severity of + factor (K)
             
       elif f.fault_type == FaultType.SENSOR_DRIFT:
