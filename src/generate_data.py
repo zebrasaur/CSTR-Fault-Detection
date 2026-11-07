@@ -33,7 +33,7 @@ class DatasetConfig:
     fouling_range: Tuple[float, float] = (0.10, 0.50)               # 10% to 50% loss in UA
     pump_trip_range: Tuple[float, float] = (0.10, 0.70)             # 10% to 70% flow reduction
     sensor_bias_temp_range: Tuple[float, float] = (0.5, 5.0)        # +/- 0.5 K to +5 K measurement bias
-    fault_start_window: Tuple[float, float] = (4320.0, 10080.0)     # Start between 2-7 days (minutes)
+    fault_start_window: Tuple[float, float] = (4320.0, 10080.0)     # Start between 3-7 days (minutes)
 
 
 @dataclass
@@ -125,7 +125,7 @@ def generate_splits(config: DatasetConfig):
             DATA / f"{split}.csv", index=False, float_format="%.4f")
         pd.concat(truth_frames[split], ignore_index=True).to_csv(
             DATA / f"{split}_truth.csv", index=False, float_format="%.4f")
-    pd.DataFrame(run_rows).to_csv(DATA / "runs.csv", index=False)
+    pd.DataFrame(run_rows).to_csv(DATA / "runs.csv", index=False, float_format="%.6f")
 
 if __name__ == "__main__":
     
