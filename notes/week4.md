@@ -51,6 +51,12 @@ Healthy plant, step	          Kp, K per kg/min
 +1 %	                              −0.5205
 −1 %	                              −0.4989
 +0.3 %	                         −0.5123
+	
+                    +1 %	         −1 %	     Central difference
+Healthy Kp	     −0.5205	   −0.4989	          0.5097
+Fouled Kp	          −0.2340	   −0.2289	          0.2315
+Fouled ÷ healthy	0.450	   0.459	               0.4541
+Closed form UA²/(UA + qc·Cpc)²			          0.4544
 
 # Fouling
 30% or less fouling severity never hit max coolant flow limit for a total of 22 runs.
