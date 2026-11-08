@@ -5,8 +5,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from cstr import default_params, solve_steady_state, derivatives
 from integrate import rk4_step
+from dataclasses import replace
 
-p = default_params()       
+p = default_params()
+#p = replace(p, UA=0.7 * p.UA)      # 30 % fouling       
 
 
 h = 0.05                          #time step or dt in minutes 
@@ -21,7 +23,7 @@ y_d = [C_A_ss, 475.0, Tc_ss]           #d case: (designed start up values)
 
 
 #step test with mc
-mc_step = mc_ss*(1+0.03)
+mc_step = mc_ss*(1+0.01)
 
 def solve_cstr_dynamic(y_initial, t_range, h, mc_step, p=p):
     '''simulates the cstr without control for controller parameters'''
@@ -90,7 +92,7 @@ Kc = tau_1 / ( abs(Kp)*(tau_c + theta) )
 tau_I =min(tau_1 ,4*(tau_c + theta) )
 
 print(f"mc_step =  {mc_step}")
-print(f"T28 =   {y_28}, T63 = {y_63}")
-print(f"t_28 =  {t_28}, t_63 = {t_63}")
-print(f"tau =   {tau_1}, Kp = {Kp}, theta = {theta}")
-print(f"Kc =    {Kc}, tau_I = {tau_I}")
+print(f"T28 =   {y_28:.4f}, T63 = {y_63:.4f}")
+print(f"t_28 =  {t_28:.4f}, t_63 = {t_63:.4f}")
+print(f"tau =   {tau_1:.4f}, Kp = {Kp:.4f}, theta = {theta:.4f}")
+print(f"Kc =    {Kc:.4f}, tau_I = {tau_I:.4f}")

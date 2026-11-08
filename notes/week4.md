@@ -1,6 +1,6 @@
 # Week 4 — dataset and splits
 
-Started: <date>
+Started: <November 3>
 
 ## What I built
 Generate data from the model using the following parameters:
@@ -40,11 +40,17 @@ the data because the controllers tunning parameters are set with the non drift d
 lots of python syntax regarding ploting, printing, tables and data inspection/generation
 
 ## Decisions I made, and why
-240 total runs: 14 days plus a 2 h warm-up(discarded, needed for drift), drift on, fault start 
-randomly drawn between day 3 and day 7, data logged every 2 minutes to 4 decimal places, 
-with measured data and truth channels in separate files. Fouling: 10-50% UA loss, 3-day ramp.
-Pump loss: 10-70% flow loss, step. RTD bias: 0.5-5k, random sign, step. All faults randomly 
-start between day 2 to day 7. All faults last to day 14. 
+240 total runs: 14 days plus a 2 h warm-up(discarded, needed for drift), drift on, fault start randomly drawn between day 3 and day 7, data logged every 2 minutes to 4 decimal places, with measured data and truth channels in separate files. Fouling: 10-50% UA loss, 3-day ramp.
+Pump loss: 10-70% flow loss, step. RTD bias: 0.5-5K, random sign, step. All faults randomly start between day 3 to day 7. All faults last to day 14. 
+Retuning controller with a a 3 % step is too big to give a clean gain. The response is nonlinear because 400 K sits close to the extinction fold (Week 3 finding that a 1.04 K feed drop kills the ignited state with the valve frozen).
+The gain increase by using a +-1% step  wasnt worth changing the controller settings 
+
+Healthy plant, step	          Kp, K per kg/min
++3 %	                              −0.5489
+−3 %                              	−0.4818
++1 %	                              −0.5205
+−1 %	                              −0.4989
++0.3 %	                         −0.5123
 
 # Fouling
 30% or less fouling severity never hit max coolant flow limit for a total of 22 runs.
@@ -55,6 +61,7 @@ Total of 28 out of 50 fouling runs hit the max coolant flow rate
 
 # Pump Trip
 Valve saturation starts at 40% pump loss. 26 runs spend more than 1% of the time saturated
+
 
 22 of the 30% or less fouling runs + the 9 temperature sensor bias (under 1K) = 31 total runs
 never hit max coolant flow rate
@@ -89,9 +96,10 @@ run_id,     time,       T_true,         Tc_true,        Ca_true,
 Ca0_true,       T0_true,        Tc_in_true,     UA_true
 2489.1446,      301.0404,       292.8080,       410049.3071
 
-Is the drift the same in both runs? (truth and measured) Do both
-sets of data use the same seed for drift?
-
+The variance rise is the plant losing gain, not a controller defect.
+Plants keep fixed tuning between turnarounds. “Loop got sluggish” is exactly
+what control-performance monitoring is built to catch, using the Harris minimum-variance index.
+A rolling std of T is therefore a legitimate detector feature.
 
 
 
@@ -135,11 +143,12 @@ RTD bias	     0.5–5 K        random sign	Step
 
 ## Time spent
 
-| Day Nov Hours | On what |
-|---|---|---|
-| Mon   |   |
-| Tue 3 | 4 |    setup, parameters        
-| Wed   |   |
-| Thu   |   |
-| Fri   |   |
-| Sat   |   |
+|Day|Nov|Hours| On what |
+|---|---|-----|---------|
+| Mon   |     |
+| Tue 3 | 4   | setup, parameters        
+| Wed   | 4   |
+| Thu   | 4   |
+| Fri   | 4   |money plot
+| Sat   | 4   |money plot
+| Sun   | 4   |general cleanup
