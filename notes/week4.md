@@ -22,16 +22,12 @@ Generate data from the model using the following parameters:
 
 ## What broke, and what fixed it
 generate data took a while trying to get faults and drift correctly injected using 
-random start times and random severities. tested generate on single runs and double runs.
-debugged a lot of code relating to faults and how to display the final table. Had trouble
-passing the seed through the whole model (every run has its own seed and therefore a unique
-run ID). Had problems with python syntax trying to print pd tables and merge them corretly. 
-Still not completely clear on this but I do not have time to learn python syntax for it now.
-decided to retune controller with drift data later on as the drift is leading to variance in
-the data because the controllers tunning parameters are set with the non drift data.
+random start times and random severities. tested generate on single runs and double runs. debugged a lot of code relating to faults and how to display the final table. Had trouble passing the seed through the whole model (every run has its own seed and therefore a unique run ID). Had problems with python syntax trying to print pd tables and merge them corretly. Still not completely clear on this but I do not have time to learn python syntax for it now.
 
-
-
+1. docs said day 2, code did day 3. Cause: a comment wasn’t updated when the constant changed. Caught by checking the code against the docs.
+2. Two machines gave different runs.csv hashes. Cause: full-precision floats pick up last-bit differences between platforms. Fix: float_format.
+3. The saturation limits (39.7 %, 50 %) assumed nominal disturbances. Drift moves saturation down to about 30 % fouling and about 40 % pump loss. Measured from qc_cmd.
+4. T variance rose under fouling. The hypothesis was bad tuning. The cause was a 55 % gain loss, confirmed by the step test to 0.07 %.
 
 <!-- The most valuable section. Every bug you diagnose is a story you can
      tell in an interview. Root cause, not just symptom. -->
@@ -68,9 +64,8 @@ Total of 28 out of 50 fouling runs hit the max coolant flow rate
 # Pump Trip
 Valve saturation starts at 40% pump loss. 26 runs spend more than 1% of the time saturated
 
-
-22 of the 30% or less fouling runs + the 9 temperature sensor bias (under 1K) = 31 total runs
-never hit max coolant flow rate
+# Sensor Bias
+None of the runs hit saturation
 
 #TEST - START
 run_id,    time,       fault_kind,   severity,      onset       
@@ -91,9 +86,9 @@ T0,             Tc_in,              Ca0
 #TRUTH - START
 run_id,    time,        fault_kind,   severity,      onset       
 98,        9292,           fouling,     0.3166,     9291.9106,
-T_true,             Tc_true,         Ca_true,        T0,             
+T_true,             Tc_true,         Ca_true,        Ca0_true,             
 400.1267,            352.8575,       525.4887,    2492.5779,          
-Tc_in,                 Ca0,             UA_true,
+T0_true,           Tc,in_true,         UA_true,
 300.7063,           293.2781,         599996.0688
 
 #TRUTH - END
@@ -104,8 +99,7 @@ Ca0_true,       T0_true,        Tc_in_true,     UA_true
 
 The variance rise is the plant losing gain, not a controller defect.
 Plants keep fixed tuning between turnarounds. “Loop got sluggish” is exactly
-what control-performance monitoring is built to catch, using the Harris minimum-variance index.
-A rolling std of T is therefore a legitimate detector feature.
+what control-performance monitoring is built to catch, using the Harris minimum-variance index. A rolling std of T is therefore a legitimate detector feature.
 
 
 
@@ -116,11 +110,13 @@ A rolling std of T is therefore a legitimate detector feature.
 ## Interview gate — answered out loud, no notes
 
 - [ ] Why three splits and not two?
-     You need to train on one split, validate on a different split and test on a third split all with different seeds.
-     training, testing and/or validating on the same data set leads to recursion in alarm thresholds and detection rates.
+     You need to train on one split, validate on a different split and test on a third split, all with different seeds.
+     training, testing and/or validating on the same data set leads to circularity and optimistically biased results. Training: fits the model (no thresholds, no detection). Valdiation: sets thresholds for FAR (no weights or faults). Test(normal): Measure unbiased detection. Test(faulted): true detection and missed detection rates. Measuring on the validation on training runs sets the thresholds too tight and measuring FAR on data that set the thresholds leads to biased rates.
 
 - [ ] Your dataset is simulated. What does that mean your results do and
       do not demonstrate?
+      Results show that the dector works and can be compared to a detector running the same model physics, noise, drift and faults. Simulated comparasions carry over better than absolute detection rates do
+      Real plants never give "normal" training data so there will be model mismatch, including disturbances that were not modelted, drift that differs from the OU model, proper calibration, changes in operating data and missing or frozen data.
 
 ## Split design
 Split	     Runs	     Contents	          Seeds
@@ -140,7 +136,6 @@ RTD bias	     0.5–5 K        random sign	Step
 
 
 ## The money plot
-
 
 
 <!-- Once healthy vs fouling is plotted: does reactor temperature really
