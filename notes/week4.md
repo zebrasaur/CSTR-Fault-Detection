@@ -38,7 +38,7 @@ lots of python syntax regarding ploting, printing, tables and data inspection/ge
 ## Decisions I made, and why
 240 total runs: 14 days plus a 2 h warm-up(discarded, needed for drift), drift on, fault start randomly drawn between day 3 and day 7, data logged every 2 minutes to 4 decimal places, with measured data and truth channels in separate files. Fouling: 10-50% UA loss, 3-day ramp.
 Pump loss: 10-70% flow loss, step. RTD bias: 0.5-5K, random sign, step. All faults randomly start between day 3 to day 7. All faults last to day 14. 
-Thought about retuning the controller with a 3 % step, the results would have been a 1.5%-2.8% difference, so i left it. The response is nonlinear because 400 K sits close to the extinction fold (Week 3 finding that a 1.04 K feed drop kills the ignited state with the valve frozen).
+Thought about retuning the controller with a +/-1 % step, retuning would raise Kc 1.5%-2.8%, so i left it. The response is nonlinear because 400 K sits close to the extinction fold (Week 3 finding that a 1.04 K feed drop kills the ignited state with the valve frozen).
 The gain increase by using a +-1% step  wasnt worth changing the controller settings 
 
 Healthy plant, step	          Kp, K per kg/min
@@ -57,7 +57,7 @@ Closed form UA²/(UA + qc·Cpc)²			          0.4544
 ## Fouling
 30% or less fouling severity never hit max coolant flow limit for a total of 22 runs.
 30%-35% fouling severity hit max coolant flow limit 4-12% of the time for a total or 3 runs.
-35%-39.5% fouling severity hit max coolant flow limit 20-65% of the time for a total of 7 runs
+35%-39.7% fouling severity hit max coolant flow limit 20-65% of the time for a total of 7 runs
 39.7% and above fouling severity hit max coolant flow limit 57-100% of the time for a total of 18 runs
 Total of 28 out of 50 fouling runs hit the max coolant flow rate
 
@@ -90,7 +90,7 @@ run_id,    time,        fault_kind,   severity,      onset
 98,        9292,           fouling,     0.3166,     9291.9106,
 T_true,             Tc_true,         Ca_true,        Ca0_true,             
 400.1267,            352.8575,       525.4887,    2492.5779,          
-T0_true,           Tc,in_true,         UA_true,
+T0_true,           Tc_in_true,         UA_true,
 300.7063,           293.2781,         599996.0688
 ```
 ```
@@ -115,7 +115,7 @@ what control-performance monitoring is built to catch, using the Harris minimum-
 - [ ] Why three splits and not two?
      You need to train on one split, validate on a different split and test on a third split, all with different seeds.
      training, testing and/or validating on the same data set leads to circularity and optimistically biased results. Training: fits the model (no thresholds, no detection). Validation: sets thresholds for FAR (no weights or faults). Test(normal): Measure false alarm rates. Test(faulted): true detection and missed detection rates. 
-     Setting thresholds on training runs makes them too tight because the model scroes its own training data as more normal than new data. Training fits the model, validation sets the thresholds and test is used once at the end to report results.
+     Setting thresholds on training runs makes them too tight because the model scores its own training data as more normal than new data. Training fits the model, validation sets the thresholds and test is used once at the end to report results.
 
 - [ ] Your dataset is simulated. What does that mean your results do and
       do not demonstrate?
@@ -123,20 +123,21 @@ what control-performance monitoring is built to catch, using the Harris minimum-
       Real plants never give "normal" training data and there will be a mismatch between the model and actual plant operations, including disturbances that were not modeled, drift that differs from the OU model, proper calibration, changes in operating data, lack of guaranteed-normal training data, labeled fault onsets and missing or frozen data.
 
 ## Split design
-Split     |     Runs	|     Contents	    |      Seeds |
-==========================================================
-Train	|     20	     | Normal	         |      0–19
-Validation|	 20	     | Normal	         |      20-39
-Test	     |     200	     | 50 normal;       |      40-89
-                         | 50 fouling,      |      90-139    
-                         | 50 pump loss,    |      140-189
-                         | 50 RTD bias	    |      190-239
+| Split      | Runs | Contents      | Seeds   |
+|------------|------|---------------|---------|
+| Train      | 20   | Normal        | 0–19    |
+| Validation | 20   | Normal        | 20–39   |
+| Test       | 50   | Normal        | 40–89   |
+| Test       | 50   | Fouling       | 90–139  |
+| Test       | 50   | Pump loss     | 140–189 |
+| Test       | 50   | RTD bias      | 190–239 |
 
-Fault	|    Severity	|     Shape        |   Type     |
-==========================================================
-Fouling	|     10–50%   |      UA loss	    |     3-day ramp
-Pump loss	|     10–70%   |      flow loss   |     Step
-RTD bias	|     0.5–5 K  |      random sign |     Step
+
+| Fault	   |    Severity  |     Shape        |   Type     |
+|------------|--------------|------------------|------------|           
+|Fouling	   |     10–50%   |      UA loss	  | 3-day ramp |
+|Pump loss   |     10–70%   |      flow loss   | Step       |
+|RTD bias	   |     0.5–5 K  |      random sign | Step       |
 
 
 
@@ -146,11 +147,12 @@ RTD bias	|     0.5–5 K  |      random sign |     Step
 ![Money plot](../figures/money_plot.png)
 
 For a 30% UA loss, the reactor temperature moved by 0.03K but raised the coolant
-flow rate by 48% and dropped the jacket temperature by 20 K. A rise in Feed temperature, however, is also coupled with coolant flow rate and jacket temperature.
+flow rate by 48% and dropped the jacket temperature by 20 K. A rise in Feed temperature, however, IT is also coupled with coolant flow rate and jacket temperature. Both 10 % fouling and a +1.16 K rise in T0 give qc = 119.12, but Tc is 348.72 K for fouling case against 351.52 K for the feed rise case. The UA estimate also separates them: 540,000 against 600,000.
+
             |Fault start    |  Fault End     |
-coolant flow|111.0864 kg/min| 182.8588 kg/min|
-Coolant Temp|353.3900 K     | 329.3996 K     |
-Reactor Temp|399.9926 K     | 400.1267 K     |
+coolant flow|108.09 kg/min| | 160.00 kg/min  |
+Coolant Temp|354.18 K       | 334.52 K       |
+Reactor Temp|399.96 K       | 399.93 K       |
 
 
 <!-- Once healthy vs fouling is plotted: does reactor temperature really
@@ -159,12 +161,12 @@ Reactor Temp|399.9926 K     | 400.1267 K     |
 
 ## Time spent
 
-|Day |Nov|Hours| On what |
-|----|---|-----|---------|
-| Mon| 2 |     |
-| Tue| 3 | 4   | setup, parameters        
-| Wed| 4 | 4   |
-| Thu| 5 | 4   |
-| Fri| 6 | 4   |money plot
-| Sat| 7 | 4   |money plot
-| Sun| 8 | 4   |general cleanup
+|Day |Nov|Hours| On what      |
+|----|---|-----|--------------|     
+| Mon| 2 |     |              |
+| Tue| 3 | 4   | setup,       |      
+| Wed| 4 | 4   |parameters    |
+| Thu| 5 | 4   |              |
+| Fri| 6 | 4   |money plot    |
+| Sat| 7 | 4   |money plot    |
+| Sun| 8 | 4   |generalcleanup|
