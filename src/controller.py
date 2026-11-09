@@ -41,8 +41,10 @@ class CSTRCoolantPI:
 
   def compute(self, measurement, dt):
     """Calculates clamped coolant flow rate mc(t) using conditional anti-windup."""
+    
     # Direct acting: e(t) = T - T_setpoint > 0 demands higher coolant flow
-    error = measurement - self.setpoint
+    error = measurement - self.setpoint             #DIRECT ACTING
+    
     # 1. Proportional term
     p_term = self.cfg.Kc * error
     # 3. Integral candidate
