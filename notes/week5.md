@@ -1,6 +1,6 @@
 # Week 5 — detection
 
-Started: <date>
+Started: November 9 2026
 
 ## What I built
 
