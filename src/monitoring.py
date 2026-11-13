@@ -1,6 +1,5 @@
 import numpy as np 
 import pandas as pd
-from scipy import stats
 
 def alarms(stat: np.ndarray, threshold: float, persistence: int):
     """ 
@@ -11,12 +10,13 @@ def alarms(stat: np.ndarray, threshold: float, persistence: int):
     arr = np.asarray(stat, dtype = np.float64)
     n = len(arr)
     latched = np.zeros(n, dtype = bool)
-
-    if n == 0:
-        return latched
+    
     # If persistence requirement is <= 0, Error message
     if persistence <= 0:
         raise ValueError(f"Persistence can not be zero or negative")
+
+    if n == 0:
+        return latched
     
     current_streak = 0
     

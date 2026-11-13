@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import numpy as np 
 import pandas as pd
-from monitoring import evaluate_run
+from monitoring import evaluate_run, compute_stat, alarms
 from scipy import stats
     
     
@@ -77,5 +77,5 @@ def test_2():
     # Indices 4, 5, 6 exceed (streak reaches 3 at index 6) -> Latch occurs
     assert not out[4] and not out[5]
     assert out[6] and out[7]  # Remains latched until end of run
-    print("✓ All assertions passed: strict index alignment, no NaNs, and exact latching.")
+    print("All assertions passed: strict index alignment, no NaNs, and exact latching.")
     print(f"stat = {stat}, out = {out}")

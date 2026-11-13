@@ -20,7 +20,9 @@ how to pass csv files and run_ID into a function. How to evaulate individual tag
 8 tags into an evaluation where any tag can trigger alarm and that would latch the entire run. 
 
 ## Decisions I made, and why
-1 false alaram per day. 14 days with the 2 hour warmup. 20 runs over 14 days gives enough samples for training and validation. Each tag has its own streak. Alarm when any one tag stays out for w samples in a row. The 8 latched arrays are combined with a logical OR, which switches on at the earliest latch time so the combined array is still latched. DCS alarm features: a HI/LO limit on all 8 tags, with on-delay condition which a persistence w satisfies. Latching simulates alarm staying on until operator acknowledges it. Real DCS limits are usually set from operating experience or equipment ratings not statistics. A bonferroni-corrected baseline is already better than a typic DCS, with tight limits of = mean ± 3.7546·σ from val, Bonferroni-corrected, same-tag on-delay, tuned to 1 false alaram per day. The future PCA win has to come from using relationships between tags, not just from tighter limits however. Univariate baseline was built with no padding and no NaNs. Each per-sample |z| was passed to to alarms(), ran per run_id, and the counter written in the value > threshold form.
+14 days of 2 minute logging, 2 hour warmup removed and alpha overall of 1/720. 20 runs x 14 days = 280 total days or 201,620 samples, gives enough samples for training and validation. Persistence filters noise dominated tags (T,Ca) so they never latch but the drift doinated ones like qc, qc_cmd are not filtered out and every false alarm comes from them.
+
+Each tag has its own streak. Alarm when any one tag stays out for w samples in a row. A w=4 is chosen with 6 minutes of on-delay with 3/20 latched validation runs because its the optimal knee and going higher has diminishing returns. The 8 latched arrays are combined with a logical OR, which switches on at the earliest latch time so the combined array is still latched. On-delay condition which a persistence w satisfies. Latching simulates alarm staying on until operator acknowledges it. Real DCS limits are usually set from operating experience or equipment ratings not statistics. A bonferroni-corrected baseline is already better than a typic DCS, with tight limits, Bonferroni-corrected, same-tag on-delay, tuned to one exceedance per day before persistence.  The future PCA win has to come from using relationships between tags, not just from tighter limits however. Univariate baseline was built with no padding and no NaNs. Each per-sample |z| was passed to to alarms(), ran per run_id, and the counter written in the value > threshold form.
 <!-- Every arbitrary-looking choice needs its reason recorded NOW, while
      you still have it. "Why 400 K?" is only answerable in week 6 if you
      wrote it down in week 3. -->
@@ -33,6 +35,16 @@ how to pass csv files and run_ID into a function. How to evaulate individual tag
       and what would make you more confident?
 
 ## Results
+Which validation runs still latch at w = 4 and why:
+
+run	Tag	                Latch sample (day)	          Value at latch
+26	qc and qc_cmd	     1302 (day 1.8)	               156.5 / 151.9 kg/min
+30	qc and qc_cmd	     3146–3149 (day 4.4)	          152.8 / 152.3
+38	qc and qc_cmd	     2120–2125 (day 2.9)	          152.8 / 151.5
+
+
+
+
 
 | Method | Detection rate | False alarms | Median delay |
 |---|---|---|---|
@@ -52,11 +64,18 @@ how to pass csv files and run_ID into a function. How to evaulate individual tag
 
 ## Time spent
 
-| Day | Hours | On what |
-|---|---|---|
-| Mon | | |
-| Tue | | |
-| Wed | | |
-| Thu | | |
-| Fri | | |
-| Sat | | |
+| Day | Hours | On what   |
+|-----|-------|-----------|  
+| Mon |   4   |univariate |
+| Tue |   4   |math       |
+| Wed |   4   |code       |
+| Thu |   4   |analysis   |
+| Fri |      |            |
+| Sat |      |            |
+| Sun |      |            |
+| Mon |      |            |
+| Tue |      |            |
+| Wed |      |            |
+| Thu |      |            |
+| Fri |      |            |
+| Sat |      |            |
