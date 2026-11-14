@@ -7,12 +7,11 @@ from monitoring import evaluate_run
 from scipy import stats
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src"))
 
 
 windows = range(2, 8)  # w = 2, 3, 4, 5, 6, 7
 
-df_all = pd.read_csv("data/val.csv")
+df_all = pd.read_csv(ROOT / data / val.csv)
 tag_whitelist = ["T", "Tc", "Ca", "qc", "T0", "Ca0", "Tc_in", "qc_cmd"]
 
 
@@ -24,7 +23,7 @@ for tag in tag_whitelist:
     
 #Set the Bonferroni critical threshold
 #720 samples/day, 8 tags, 2 tailed test
-alpha_overall = 1.0 / 720.0                         #one False Alarm per day
+alpha_overall = 1.0 / 720.0   #one exceedence (before persistence) per day
 alpha_tail = alpha_overall / (2.0 * len(tag_whitelist)) #m = 8
 threshold = float(stats.norm.ppf(1.0 - alpha_tail)) #Zcrit = 3.7546
 
