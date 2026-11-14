@@ -11,6 +11,7 @@ monitoring detector that simulates a DCS with an alarm that latchs after consecu
 Everything. I had to learn most of the python and math from scratch invluding 
 input parameters and how to turn an UCL and LCL into a single scaler. Do not
 pad or drop the first w-1 steps. The persistence rule do not have edge effects from a steady state start with drift starting. Sample 0 is valid for faults. Did a per sample  statistic with each tags z aginst a fixed limit. Do not run the alarm on a whole csv as one array, alarm runs on earch run_id seperately. A missiing or frozen sample would need a rule inside a streak. The latch can not come on before onset + (w -1) samples. Did not fully understand statistic window and how and when to corretly align data with loop.
+Evaluate_run reported 1 false alarm on train, the cause was improper indentation on a the tag loop and only qc_cmd was evaluated, after fix false alarms went from 1 to 5, always do a hand built test case before major runs
 
 <!-- The most valuable section. Every bug you diagnose is a story you can
      tell in an interview. Root cause, not just symptom. -->
@@ -22,16 +23,19 @@ how to pass csv files and run_ID into a function. How to evaulate individual tag
 ## Decisions I made, and why
 14 days of 2 minute logging, 2 hour warmup removed and alpha overall of 1/720. 20 runs x 14 days = 280 total days or 201,620 samples, gives enough samples for training and validation. Persistence filters noise dominated tags (T,Ca) so they never latch but the drift doinated ones like qc, qc_cmd are not filtered out and every false alarm comes from them.
 
-Each tag has its own streak. Alarm when any one tag stays out for w samples in a row. A w=4 is chosen with 6 minutes of on-delay with 3/20 latched validation runs because its the optimal knee and going higher has diminishing returns. The 8 latched arrays are combined with a logical OR, which switches on at the earliest latch time so the combined array is still latched. On-delay condition which a persistence w satisfies. Latching simulates alarm staying on until operator acknowledges it. Real DCS limits are usually set from operating experience or equipment ratings not statistics. A bonferroni-corrected baseline is already better than a typic DCS, with tight limits, Bonferroni-corrected, same-tag on-delay, tuned to one exceedance per day before persistence.  The future PCA win has to come from using relationships between tags, not just from tighter limits however. Univariate baseline was built with no padding and no NaNs. Each per-sample |z| was passed to to alarms(), ran per run_id, and the counter written in the value > threshold form.
+Each tag has its own streak. Alarm when any one tag stays out for w samples in a row. A w=4 is chosen with 6 minutes of on-delay with 3/20 latched validation runs because its the optimal knee and going higher has diminishing returns. The 8 latched arrays are combined with a logical OR, which switches on at the earliest latch time so the combined array is still latched. On-delay condition which a persistence w satisfies. Latching simulates alarm staying on until operator acknowledges it. Real DCS limits are usually set from operating experience or equipment ratings not statistics. A bonferroni-corrected baseline is already better than a typic DCS, with tight limits, Bonferroni-corrected, same-tag on-delay, tuned to one exceedance per day before persistence.  
+
+The future PCA win has to come from using relationships between tags, not just from tighter limits however. Univariate baseline was built with no padding and no NaNs. Each per-sample |z| was passed to to alarms(), ran per run_id, and the counter written in the value > threshold form.
 
 5. **Alarm logic.** 
-require same-tag persistance w = 4, any tag latches all 8 arrays, with 
-threshold = Zcrit = 3.7546.
-7. **Metrics: detection rate, false alarm rate, detection delay.** 
-False alarm rate: 0.20 with a wilson 95% interval
-detection delay: latched at onset with a a dely of persistance w
-tag_whitelist = ["T", "Tc", "Ca", "qc", "T0", "Ca0", "Tc_in", "qc_cmd"]
+Require same-tag persistance w = 4, any tag latches all 8 arrays, with 
+threshold = Zcrit = 3.7546
 
+7. **Metrics: detection rate, false alarm rate, detection delay.** 
+False alarm rate: 3/20 normal test runs that latch, 0.15 with a wilson 95% interval at w =4
+detection: latch at onset
+detection delay: (w-1)x2 = 3x2= 6 minutes
+tag_whitelist = ["T", "Tc", "Ca", "qc", "T0", "Ca0", "Tc_in", "qc_cmd"]
 
 
 
@@ -49,12 +53,19 @@ tag_whitelist = ["T", "Tc", "Ca", "qc", "T0", "Ca0", "Tc_in", "qc_cmd"]
 ## Results
 Which validation runs still latch at w = 4 and why:
 
-run	Tag	                Latch sample (day)	          Value at latch
-26	qc and qc_cmd	     1302 (day 1.8)	               156.5 / 151.9 kg/min
-30	qc and qc_cmd	     3146–3149 (day 4.4)	          152.8 / 152.3
-38	qc and qc_cmd	     2120–2125 (day 2.9)	          152.8 / 151.5
+the qc and qc_cmd trajectories of val runs 26, 30 and 38 around their latch samples, next to T0 and Tc_in. That plot is the clearest picture of why univariate monitoring fails here, and it motivates PCA. Q stays quiet on val runs 26, 30 and 38. qc and T0 move together, so the correlation structure holds.
 
+run|	Tag	         |Latch sample (day) | Value at latch |
+---|---------------|-------------------|----------------|
+26 |	qc and qc_cmd |1302 (day 1.8)     |156.5 / 151.9   |
+30 |	qc and qc_cmd |3146–3149 (day 4.4)|152.8 / 152.3   |
+38 |	qc and qc_cmd |2120–2125 (day 2.9)|152.8 / 151.5   |
 
+run|	qc   |Tc   |T0   |Ca0 |Tc_in|	T   |
+---|------|-----|-----|----|-----|-----|
+26 |	+3.6	|−3.0 |+1.7 |+1.5|+1.0 |	0.0 |
+30 |	+3.3	|−2.9 |+2.8 |+0.7|−0.1 |+0.8 |
+38 |	+3.5	|−3.0 |+2.5 |+0.7|+0.6 |+0.5 |
 
 
 
