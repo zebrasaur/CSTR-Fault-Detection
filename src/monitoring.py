@@ -98,37 +98,34 @@ def fit_pca(x_train, k):
     z_hat_all = T_all @ P.T
     residual = z_train - z_hat_all
     max_error = np.max(np.abs(residual))
-    assert max_error < 1e-12, f"Loadings are transposed, Residual = {max_error}"
+    assert max_error < 1e-12, f"Full-rannk reconstruction failed, Residual = {max_error}"
     
     n_train = z_train.shape[0]
     lamdas = (S ** 2) / (n_train - 1)
     #sanity check lamdas
-    if not np.isclose(np.sum(lamdas), 8.0):
+    if not np.isclose(np.sum(lamdas), arr.shape[1]):
         raise ValueError(f"Not standardized correctly: sum of lamdas = {np.sum(lamdas)}")   
     
-    #print lamda table
-    for i, lam in enumerate(lamdas, start=1):
-        print(f"PC{i}: lamda = {lam:.4f} ({lam / 8.0 * 100: .1f}%)")
     
-    P_k = P[:, :k]          #shape (8,k)
-    lamdas_k = lamdas[:k]   #shape (k)
+    P_k = P[:, :k]          #shape (8,k), loadings
+    lamdas_k = lamdas[:k]   #shape (k), eigenvalues
     
     return {
-        "mu": mu,
-        "sigma": sigma,
-        "P_k": P[:, :k],
-        "lamdas_k": lamdas[:k],
-        "all_lamdas": lamdas, 
+        "mean": mu,
+        "std": sigma,
+        "loadings": P[:, :k],
+        "eigenvalues": lamdas[:k],
+        "all_eigenvalues": lamdas, 
     }
     
 def t2_q(x_val, model):
     '''Return (T2, Q), each of length n_samples.'''  
     arr = np.asarray(x_val, dtype=np.float64)   
-    mu = model["mu"]                # shape: (n_features,)
-    sigma = model["sigma"]          # shape: (n_features,)
-    P_k = model["P_k"]              # shape: (n_features, k)
-    lamdas_k = model["lamdas_k"]  # shape: (k,)    
-    z_stat = (arr - mu) / sigma
+    mean = model["mean"]                # shape: (n_features,)
+    std = model["std"]          # shape: (n_features,)
+    P_k = model["loadings"]              # shape: (n_features, k)
+    lamdas_k = model["eigenvalues"]  # shape: (k,)    
+    z_stat = (arr - mean) / std
     scores = z_stat @ P_k
     
     T2 = np.sum((scores ** 2) / lamdas_k, axis=1)
