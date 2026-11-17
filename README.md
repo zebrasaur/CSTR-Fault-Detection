@@ -1,36 +1,32 @@
+This project aims to detect faults (fouling, pump loss, drift) on a 
+jacketed CSTR under PI temperature controller acting on coolant flowrate
+![Money plot](../figures/money_plot.png)
+
 Work in progress: week 5 of 6. Detection results pending.
 
-I wrote all physics, control, fault and detection code. I used Claude as a reviewer: it checked derivations, reran results independently, and caught bugs, which are documented in the notes
+Typical controllers hide faults affecting reactor temperature (as shown in the money_plot) and this project aims to correlate multiple reactor variables to be able tell when a hidden fault (such as fouling) occurs.
+
+I wrote all physics, control, fault and detection code. I used Claude as a reviewer: it checked derivations, reran results independently, and caught bugs, which are documented in the notes.
 
 PLAN.md and check.py are the project’s self-imposed plan and acceptance tests.
 
 ```
 PLAN.md      the six-week plan 
 check.py     automated acceptance checks; the specification
-src/          code goes here (empty)
+src/         model, controller, faults, data generation, monitoring
+analysis/    scripts and figures
+tests/       pytest
 notes/       one markdown file per week 
 data/        generated in week 4, not committed
 results/     generated in week 5
 figures/     generated in weeks 4-6
 ```
 
-## Day one, in order
-
-1. Read `PLAN.md` end to end
-2. Install Python 3.11+, git, and an editor.
-3. Create the GitHub repo and clone it.
-4. `python check.py` — everything fails. That is the correct starting
-   state.
-5. `python check.py 1 --spec`  week 1 specs
-6. Open `notes/week1.md` and write the date.
-
 ## How the checker works
 
-```bash
-python check.py            # progress across all stages
-python check.py 3          # detailed results for stage 3
-python check.py 3 --spec   # the interface stage 3 expects
-```
+python check.py       #check.py is the acceptance test for each stage
+python check.py 3         
+python check.py 3 --spec   
 
 The checks test behaviour and invariants, never implementation. There are
 many correct ways to pass them. When one fails it tells you what is wrong

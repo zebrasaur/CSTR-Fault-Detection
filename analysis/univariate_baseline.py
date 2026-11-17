@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 windows = range(2, 8)  # w = 2, 3, 4, 5, 6, 7
 
-df_all = pd.read_csv(ROOT / data / val.csv)
+df_all = pd.read_csv(ROOT / "data" / "val.csv")
 tag_whitelist = ["T", "Tc", "Ca", "qc", "T0", "Ca0", "Tc_in", "qc_cmd"]
 
 
