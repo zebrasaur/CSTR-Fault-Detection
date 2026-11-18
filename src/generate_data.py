@@ -132,11 +132,11 @@ def generate_splits(config: DatasetConfig):
 if __name__ == "__main__":
     
     dataset_config = DatasetConfig(
-        n_train=0,                             # 20 training runs (diminishing returns after 20)
-        n_val=0,                               # 20 validation runs (diminishing returns after 20)
-        n_test_normal=50,                       # 50 tests with no faults
-        n_test_faulted=50,                      # 50 tests of each fault (fouling, pump_trip, sensor_bias_temp)
-        base_seed=1000,
+        n_train=20,                             # 20 training runs (diminishing returns after 20)
+        n_val=20,                               # 20 validation runs (diminishing returns after 20)
+        n_test_normal=0,                        # 0 tests with no faults (data already generated)
+        n_test_faulted=0,                       # 0 tests of each fault (fouling, pump_trip, sensor_bias_temp)(data already generated)
+        base_seed=0,                            # seeds 0-39 for train & val
         sim_time=1440 * 14,                     # minutes
         dt=0.05,                                # minutes
         is_faulted=False,
