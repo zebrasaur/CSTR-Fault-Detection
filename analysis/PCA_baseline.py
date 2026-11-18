@@ -42,7 +42,9 @@ for k in k_values:
             run_alarm_summary.append({
                 "run_id": run_id,
                 "alarm_triggered": did_alarm,
-                "first_alarm_index": int(np.argmax(latched)) if did_alarm else None})
+                "first_alarm_index": int(np.argmax(latched)) if did_alarm else None,
+                "Did_T2_latch": T2_is_latched,
+                "Did_Q_latch": Q_is_latched})
 
 summary_df = pd.DataFrame(run_alarm_summary)
 out = ROOT / "results" / "PCA_val.csv"
