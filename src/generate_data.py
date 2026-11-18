@@ -120,7 +120,9 @@ def generate_splits(config: DatasetConfig):
             run_rows.append({"run_id": current_seed, "split": split_name, "fault_kind": label,
                  "severity": severity, "onset": onset,"max_dev": max_dev})
 
-    for split in frames:                                              # "train", then "val", then "test"
+    for split in frames:            # "train", then "val", then "test"
+        if not frames[split]:
+            continue
         pd.concat(frames[split], ignore_index=True).to_csv(
             DATA / f"{split}.csv", index=False, float_format="%.4f")
         pd.concat(truth_frames[split], ignore_index=True).to_csv(
@@ -130,11 +132,11 @@ def generate_splits(config: DatasetConfig):
 if __name__ == "__main__":
     
     dataset_config = DatasetConfig(
-        n_train=20,                             # 20 training runs (diminishing returns after 20)
-        n_val=20,                               # 20 validation runs (diminishing returns after 20)
+        n_train=0,                             # 20 training runs (diminishing returns after 20)
+        n_val=0,                               # 20 validation runs (diminishing returns after 20)
         n_test_normal=50,                       # 50 tests with no faults
         n_test_faulted=50,                      # 50 tests of each fault (fouling, pump_trip, sensor_bias_temp)
-        base_seed=0,
+        base_seed=1000,
         sim_time=1440 * 14,                     # minutes
         dt=0.05,                                # minutes
         is_faulted=False,
